@@ -1,10 +1,11 @@
 from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import JSON, Boolean, Integer, String, select, update
+from sqlalchemy import JSON, Boolean, DateTime, Integer, String, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -23,6 +24,7 @@ class IncidentRow(Base):
     service_id: Mapped[str] = mapped_column(String(128), index=True)
     state: Mapped[str] = mapped_column(String(32), index=True)
     version: Mapped[int] = mapped_column(Integer, default=0)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON)
 
 
@@ -78,7 +80,7 @@ class SQLiteIncidentRepository:
 
     async def list_incidents(self, limit: int = 100, offset: int = 0) -> list[Incident]:
         async with self.sessions() as session:
-            rows = (await session.scalars(select(IncidentRow).order_by(IncidentRow.id).limit(limit).offset(offset))).all()
+            rows = (await session.scalars(select(IncidentRow).order_by(IncidentRow.started_at.desc(), IncidentRow.id).limit(limit).offset(offset))).all()
             return sorted((Incident.model_validate(row.payload) for row in rows), key=lambda i: i.started_at, reverse=True)
 
     async def save(self, incident: Incident, audit: list[AuditEvent] | None = None, events: list[dict[str, Any]] | None = None) -> None:
@@ -91,9 +93,9 @@ class SQLiteIncidentRepository:
             if previous == 0:
                 if await session.get(IncidentRow, incident.id):
                     raise ConflictError("Incident already exists")
-                session.add(IncidentRow(id=incident.id, service_id=incident.service_id, state=incident.state, version=1, payload=payload))
+                session.add(IncidentRow(id=incident.id, service_id=incident.service_id, state=incident.state, version=1, started_at=incident.started_at.astimezone(UTC), payload=payload))
             else:
-                result = await session.execute(update(IncidentRow).where(IncidentRow.id == incident.id, IncidentRow.version == previous).values(state=incident.state, version=candidate.version, payload=payload))
+                result = await session.execute(update(IncidentRow).where(IncidentRow.id == incident.id, IncidentRow.version == previous).values(state=incident.state, version=candidate.version, started_at=incident.started_at.astimezone(UTC), payload=payload))
                 if cast(CursorResult[Any], result).rowcount != 1:
                     raise ConflictError("Incident changed; reload before retrying")
             for event in audit or []:
