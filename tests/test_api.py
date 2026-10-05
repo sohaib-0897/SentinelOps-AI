@@ -39,8 +39,11 @@ def test_api_complete_demo(tmp_path: Path) -> None:
 
 def test_authentication_and_input_validation(tmp_path: Path) -> None:
     with TestClient(create_app(settings(tmp_path, operator_token="x"*32))) as client:
+        assert client.get("/api/v1/incidents").status_code == 401
+        assert client.get("/api/v1/events").status_code == 401
         assert client.post("/api/v1/demo/start", json={}).status_code == 401
         headers = {"Authorization":"Bearer " + "x"*32}
         assert client.post("/api/v1/demo/start", json={"scenario":"invalid"}, headers=headers).status_code == 422
-        assert client.get("/api/v1/incidents?limit=10000").status_code == 422
+        assert client.get("/api/v1/incidents?limit=10000", headers=headers).status_code == 422
+        assert client.post("/api/v1/demo/start", content="{}", headers={**headers, "Content-Length":"1000001"}).status_code == 413
         assert client.post("/api/v1/demo/speed", json={"speed":100}, headers=headers).status_code == 422

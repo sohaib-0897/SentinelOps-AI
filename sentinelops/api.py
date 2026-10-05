@@ -42,6 +42,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.runtime = runtime
     app.add_middleware(CORSMiddleware, allow_origins=configuration.cors_origins, allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"], allow_credentials=False)
 
+    @app.middleware("http")
+    async def boundary(request: Request, call_next: Any) -> Any:
+        from fastapi.responses import JSONResponse
+        if request.url.path.startswith("/api/") and configuration.operator_token:
+            supplied = request.headers.get("Authorization", "").removeprefix("Bearer ")
+            if not secrets.compare_digest(supplied,configuration.operator_token):
+                return JSONResponse(status_code=401,content={"detail":"Operator authentication required"})
+        length = request.headers.get("Content-Length")
+        if length and (not length.isdigit() or int(length) > 1000000):
+            return JSONResponse(status_code=413,content={"detail":"Request exceeds allowed size"})
+        return await call_next(request)
+
+    @app.exception_handler(Exception)
+    async def internal_error(request: Request, error: Exception) -> Any:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=500,content={"detail":"Operation failed safely; inspect incident audit and service configuration"})
+
     async def operator(request: Request) -> str:
         if configuration.operator_token:
             supplied = request.headers.get("Authorization", "").removeprefix("Bearer ")
