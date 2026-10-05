@@ -36,8 +36,8 @@ resource "google_bigquery_table" "history" {
   table_id            = "historical_incidents"
   deletion_protection = true
   schema = jsonencode(concat(
-    [for field in ["id", "title", "signature", "cause", "remediation", "outcome", "embedding_version"] : { name = field, type = "STRING", mode = "REQUIRED" }],
-    [{ name = "embedding", type = "FLOAT64", mode = "REPEATED" }]
+    [for field in ["id", "title", "signature", "cause", "remediation", "outcome", "embedding_version", "embedding_model"] : { name = field, type = "STRING", mode = "REQUIRED" }],
+    [{ name = "embedding", type = "FLOAT64", mode = "REPEATED" }, { name = "embedding_dimensions", type = "INT64", mode = "REQUIRED" }]
   ))
 }
 output "bigquery_dataset" { value = google_bigquery_dataset.operations.dataset_id }

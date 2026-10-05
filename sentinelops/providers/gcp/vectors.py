@@ -1,5 +1,6 @@
 import hashlib
 import importlib
+import json
 import math
 import re
 from typing import Any
@@ -37,14 +38,26 @@ class BigQueryVectorProvider:
         if not 1 <= limit <= 10:
             raise ValueError("Vector search limit must be 1–10")
         # Identifiers are validated by table_name; every query value is bound as a parameter.
-        sql = f"SELECT base.*, distance FROM VECTOR_SEARCH(TABLE `{self.table}`, 'embedding', (SELECT @embedding AS embedding), top_k => @top_k, distance_type => 'COSINE') ORDER BY distance"  # noqa: S608
+        sql = f"SELECT base.*, distance FROM VECTOR_SEARCH((SELECT * FROM `{self.table}` WHERE embedding_version = 'hash128-v1' AND embedding_model = 'hash-lexical' AND embedding_dimensions = 128), 'embedding', (SELECT @embedding AS embedding), top_k => @top_k, distance_type => 'COSINE') ORDER BY distance"  # noqa: S608
         config = self.query_config(query,limit)
         job = await cloud_call(lambda:self.sdk.query(sql,job_config=config))
         rows = await cloud_call(lambda:list(job.result(timeout=30)))
         return [HistoricalIncident(id=row["id"], title=row["title"], signature=row["signature"], cause=row["cause"], remediation=row["remediation"], outcome=row["outcome"], similarity=max(0., min(1., 1-float(row["distance"])))) for row in rows]
 
     async def seed(self, incidents: list[HistoricalIncident]) -> None:
-        rows = [{**incident.model_dump(exclude={"similarity"}), "embedding":embedding(incident.signature+" "+incident.title), "embedding_version":"hash128-v1"} for incident in incidents]
-        errors = await cloud_call(lambda:self.sdk.insert_rows_json(self.table,rows,row_ids=[i.id for i in incidents]))
-        if errors:
-            raise ValueError("BigQuery historical seed rejected; inspect schema and embedding version")
+        if not incidents:
+            return
+        if len(incidents) > 100 or len({i.id for i in incidents}) != len(incidents):
+            raise ValueError("Seed must contain at most 100 unique incident IDs")
+        rows = [{**incident.model_dump(exclude={"similarity"}), "embedding":embedding(incident.signature+" "+incident.title)} for incident in incidents]
+        # MERGE makes repeated setup safe; insertId streaming dedup is only best effort.
+        fields = ["id", "title", "signature", "cause", "remediation", "outcome"]
+        source = ", ".join(f"JSON_VALUE(item, '$.{field}') AS {field}" for field in fields)
+        source += ", ARRAY(SELECT CAST(JSON_VALUE(value) AS FLOAT64) FROM UNNEST(JSON_QUERY_ARRAY(item, '$.embedding')) value) AS embedding, 'hash128-v1' AS embedding_version, 'hash-lexical' AS embedding_model, 128 AS embedding_dimensions"
+        columns = [*fields, "embedding", "embedding_version", "embedding_model", "embedding_dimensions"]
+        updates = ", ".join(f"{field}=source.{field}" for field in columns if field != "id")
+        sql = f"MERGE `{self.table}` target USING (SELECT {source} FROM UNNEST(JSON_QUERY_ARRAY(PARSE_JSON(@rows))) item) source ON target.id=source.id WHEN MATCHED THEN UPDATE SET {updates} WHEN NOT MATCHED THEN INSERT ({', '.join(columns)}) VALUES ({', '.join('source.'+field for field in columns)})"  # noqa: S608
+        bq = importlib.import_module("google.cloud.bigquery")
+        config = bq.QueryJobConfig(query_parameters=[bq.ScalarQueryParameter("rows", "STRING", json.dumps(rows))], maximum_bytes_billed=1000000000)
+        job = await cloud_call(lambda: self.sdk.query(sql, job_config=config))
+        await cloud_call(lambda: job.result(timeout=30))
