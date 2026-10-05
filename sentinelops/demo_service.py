@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import secrets
 import time
@@ -21,7 +22,7 @@ class DemoControl(Model):
 
 class DemoState:
     def __init__(self) -> None:
-        self.configuration = DemoControl.model_validate({"failure_mode":os.getenv("FAILURE_MODE", "none"), "revision":os.getenv("DEMO_REVISION", "api-v1")})
+        self.configuration = DemoControl.model_validate({"failure_mode":os.getenv("FAILURE_MODE", "none"), "revision":os.getenv("DEMO_REVISION", os.getenv("K_REVISION", "api-v1"))})
         self.requests = 0
         self.errors = 0
         self.logs: deque[dict[str, Any]] = deque(maxlen=128)
@@ -47,6 +48,8 @@ def create_demo_app() -> FastAPI:
         fail = mode in {"db_pool_exhaustion", "dependency_timeout", "memory_pressure"} or (mode == "http_500" and state.requests % 100 < 18)
         state.latencies.append((time.monotonic()-start)*1000)
         state.logs.append({"timestamp":now().isoformat(), "severity":"ERROR" if fail else "INFO", "message":messages.get(mode, "Request completed"), "revision":state.configuration.revision})
+        # Cloud Logging reads structured stdout; these bounded messages contain no user data.
+        print(json.dumps(state.logs[-1]), flush=True)
         if fail:
             state.errors += 1
             raise HTTPException(status_code=504 if mode == "dependency_timeout" else 500, detail=messages[mode])
