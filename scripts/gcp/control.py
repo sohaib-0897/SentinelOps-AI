@@ -63,7 +63,13 @@ class Deployment:
         billing = json.loads(self.gcloud("billing", "projects", "describe", self.args.project_id, "--format=json", capture=True))
         if not billing.get("billingEnabled"):
             raise RuntimeError("Billing must be enabled")
-        self.tf("init", "-input=false")
+        state_bucket = f"{self.args.project_id}-sops-{self.args.environment}-tfstate"
+        if self.args.command == "bootstrap" and self.args.execute:
+            buckets = self.gcloud("storage", "buckets", "list", f"--filter=name:{state_bucket}", "--format=value(name)", capture=True)
+            if not buckets:
+                self.gcloud("storage", "buckets", "create", f"gs://{state_bucket}", f"--location={self.args.region}", "--uniform-bucket-level-access", "--public-access-prevention")
+            self.gcloud("storage", "buckets", "update", f"gs://{state_bucket}", "--versioning")
+        self.tf("init", "-input=false", f"-backend-config=bucket={state_bucket}", f"-backend-config=prefix=sentinelops/{self.args.environment}")
         self.tf("validate")
         # Every command carries --project; the user's global gcloud project is untouched.
         if "dashboard_invokers" not in self.values:
