@@ -13,7 +13,7 @@ from sentinelops.providers.contracts import DeploymentProvider, LogProvider, Met
 
 async def collect(logs: LogProvider, metrics: MetricsProvider, deployments: DeploymentProvider) -> TelemetryBatch:
     observations, entries, revisions, service = await asyncio.gather(metrics.get_metric_series("orders-api", 120), logs.search_logs("orders-api", limit=200), deployments.get_recent_deployments("orders-api"), deployments.get_service_health("orders-api"))
-    return TelemetryBatch(metrics=observations, logs=entries, deployments=revisions, service=service)
+    return TelemetryBatch(metrics=observations, logs=entries, deployments=revisions[-20:], service=service)
 
 
 async def api_headers(client: httpx.AsyncClient, audience: str, operator_token: str) -> dict[str, str]:

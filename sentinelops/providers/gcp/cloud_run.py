@@ -36,7 +36,7 @@ class CloudRunDeploymentProvider:
             current_env = {e.name:e.value for container in revision.containers for e in container.env if e.value}
             previous_env = {e.name:e.value for container in previous.containers for e in container.env if e.value}
             changes = {key:"[REDACTED]" if any(s in key.lower() for s in ("secret","token","password","key")) else value for key,value in current_env.items() if previous_env.get(key) != value}
-            result.append(Deployment(service_id=service_id, revision=revision.name.rsplit("/",1)[-1], previous_revision=previous.name.rsplit("/",1)[-1], timestamp=revision.create_time or now(), changes=changes, healthy=bool(revision.conditions) and any(int(c.state) == 4 for c in revision.conditions)))
+            result.append(Deployment(id=revision.name, service_id=service_id, revision=revision.name.rsplit("/",1)[-1], previous_revision=previous.name.rsplit("/",1)[-1], timestamp=revision.create_time or now(), changes=changes, healthy=bool(revision.conditions) and any(int(c.state) == 4 for c in revision.conditions)))
         return result
 
     async def get_service_health(self, service_id: str) -> Service:

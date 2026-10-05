@@ -1,3 +1,4 @@
+import hashlib
 import json
 from datetime import timedelta
 from typing import Any
@@ -24,5 +25,6 @@ class GCPLoggingProvider:
             payload = entry.payload
             message = str(payload.get("message", "Structured application log")) if isinstance(payload, dict) else str(payload)
             severity = str(entry.severity).upper()
-            result.append(LogEntry(timestamp=entry.timestamp or now(), service_id=service_id, revision=entry.resource.labels.get("revision_name", "unknown"), severity="ERROR" if severity in {"ERROR", "CRITICAL", "ALERT", "EMERGENCY"} else "WARNING" if severity == "WARNING" else "INFO", message=message[:4000]))
+            stable_id = hashlib.sha256(f"{self.project}:{service_id}:{entry.timestamp}:{message}".encode()).hexdigest()
+            result.append(LogEntry(id=stable_id, timestamp=entry.timestamp or now(), service_id=service_id, revision=entry.resource.labels.get("revision_name", "unknown"), severity="ERROR" if severity in {"ERROR", "CRITICAL", "ALERT", "EMERGENCY"} else "WARNING" if severity == "WARNING" else "INFO", message=message[:4000]))
         return result

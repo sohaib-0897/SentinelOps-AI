@@ -1,10 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Literal
 
 from pydantic import Field, field_validator
 
 from sentinelops.detection import detect_incident
-from sentinelops.domain.models import Deployment, LogEntry, MetricPoint, Model, Service
+from sentinelops.domain.lifecycle import ConflictError
+from sentinelops.domain.models import Deployment, LogEntry, MetricPoint, Model, Service, now
 from sentinelops.runtime import Runtime
 
 
@@ -23,6 +24,8 @@ class TelemetryBatch(Model):
                 raise ValueError("Telemetry must belong to the allow-listed service")
             if record.timestamp.tzinfo is None:
                 raise ValueError("Telemetry timestamps must include a timezone")
+            if record.timestamp > now() + timedelta(minutes=5):
+                raise ValueError("Telemetry timestamp is too far in the future")
         return records
 
     @field_validator("service")
@@ -36,6 +39,8 @@ class TelemetryBatch(Model):
 async def ingest(runtime: Runtime, batch: TelemetryBatch) -> dict[str, Any]:
     """Accept ordered, authenticated observations without executing remediation."""
     async with runtime.control_lock:
+        if runtime.simulation.scenario is not None:
+            raise ConflictError("External telemetry cannot alter an active local scenario")
         telemetry = runtime.telemetry
         latest: datetime | None = telemetry.metrics[-1].timestamp if telemetry.metrics else None
         fresh = [p for p in sorted(batch.metrics, key=lambda p: p.timestamp) if latest is None or p.timestamp > latest]

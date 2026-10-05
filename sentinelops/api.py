@@ -11,6 +11,7 @@ from sentinelops.config import Settings, get_settings
 from sentinelops.domain.lifecycle import ConflictError
 from sentinelops.domain.models import Incident, Model, State
 from sentinelops.runtime import Runtime
+from sentinelops.security.request_limits import RequestSizeLimit
 from sentinelops.simulation import scenarios
 
 
@@ -40,6 +41,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="SentinelOps AI", version="0.1.0", lifespan=lifespan)
     app.state.runtime = runtime
+    app.add_middleware(RequestSizeLimit)
     app.add_middleware(CORSMiddleware, allow_origins=configuration.cors_origins, allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"], allow_credentials=False)
 
     @app.middleware("http")
@@ -135,7 +137,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await require(incident_id)
         async with runtime.control_lock:
             incident = await runtime.workflow.execute(incident_id, actor)
-            runtime.simulation.recover()
+            if configuration.demo_mode:
+                runtime.simulation.recover()
             await runtime.repository.set_runtime("telemetry", runtime.telemetry.snapshot())
             return incident
 
