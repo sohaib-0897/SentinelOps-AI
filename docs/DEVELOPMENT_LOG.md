@@ -10,3 +10,4 @@ Git commits are the authoritative milestone identifiers. Each entry is included 
 | 05-domain | 2026-10-05 | This commit; parent `3fec3f0` | Strict incident, evidence, action, approval, telemetry and postmortem schemas | 6 domain tests; ruff; strict mypy passed | None for this milestone. |
 | 10-lifecycle | 2026-10-05 | This commit; parent `f062379` | Explicit incident state machine and complete transition matrix | 101 lifecycle tests; ruff; mypy passed | None for this milestone. |
 | 06-persistence | 2026-10-05 | This commit; parent `9f7636f` | Alembic migrations, durable aggregates, optimistic concurrency and transactional audit | Migration/reopen, stale-write rollback and runtime tests passed; ruff; mypy | None for this milestone. |
+| 07-providers | 2026-10-05 | This commit; parent `b86939f` | Typed cloud boundaries and bounded local event fan-out | Event ordering, overflow resync and disconnect cleanup tests passed; ruff; mypy | None for this milestone. |
