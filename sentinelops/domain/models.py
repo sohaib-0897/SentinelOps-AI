@@ -5,6 +5,8 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from sentinelops.security.redaction import redact
+
 
 def now() -> datetime:
     return datetime.now(UTC)
@@ -75,6 +77,11 @@ class LogEntry(Model):
     severity: Literal["INFO", "WARNING", "ERROR"] = "INFO"
     message: str = Field(max_length=4000)
     labels: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("message")
+    @classmethod
+    def redact_message(cls, value: str) -> str:
+        return redact(value)
 
 
 class Evidence(Model):
