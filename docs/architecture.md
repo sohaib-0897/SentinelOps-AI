@@ -24,6 +24,8 @@ flowchart LR
 
 Incidents, approval/execution claims, audit and outgoing events are durable transactional records. Optimistic versions prevent stale writes and concurrent execution. Publication failure leaves a stable-ID outbox event for retry. Analytics acknowledges only after successful storage, and also upserts verified resolution history before acknowledgement. Streaming insert IDs are best-effort deduplication; consumers of analytics use `canonical_domain_events` for one row per event ID.
 
+The scheduled analytics job makes one 15-second pull with SDK retries disabled. A deadline with no response is logged and left for the next scheduled run; it does not establish that the queue is empty. Permission and configuration failures still fail the job. See Google's [pull troubleshooting](https://docs.cloud.google.com/pubsub/docs/pull-troubleshooting) for synchronous pull limits.
+
 Cloud polling validates the sole monitored service, bounded payloads, timestamp freshness and replay behavior. It triggers investigation only. It cannot execute actions or overwrite an active local scenario. Cloud logs/revisions have stable IDs across polls.
 
 The deployment currently uses one active API instance and one Uvicorn worker. In-process locks, SSE subscriptions and restart handling make horizontal API scaling unsupported. Revision transitions can still overlap briefly; optimistic claims protect action replay, but distributed workflow leases and SSE fan-out are future scaling work. A restart marks interrupted workflows failed for operator review rather than silently replaying privileged actions.

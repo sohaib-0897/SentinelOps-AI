@@ -6,6 +6,23 @@ import pytest
 from sentinelops.analytics_worker import AnalyticsConsumer
 from sentinelops.domain.models import HistoricalIncident
 from sentinelops.providers.events import DomainEvent
+from sentinelops.providers.gcp.common import CloudConfigurationError
+
+
+async def test_pull_deadline_is_bounded_and_permission_errors_still_fail() -> None:
+    exceptions = pytest.importorskip("google.api_core.exceptions")
+    sdk = MagicMock()
+    sdk.pull.side_effect = exceptions.DeadlineExceeded("No pull response")
+    analytics = MagicMock(record_event=AsyncMock())
+    consumer = AnalyticsConsumer("test-project", "analytics", analytics, sdk)
+    assert await consumer.drain_once() == {"accepted":0,"retry_pending":0,"pull_timeouts":1}
+    assert sdk.pull.call_args.kwargs["retry"] is None
+    assert sdk.pull.call_args.kwargs["timeout"] == 15
+    sdk.acknowledge.assert_not_called()
+    analytics.record_event.assert_not_called()
+    sdk.pull.side_effect = exceptions.PermissionDenied("Denied")
+    with pytest.raises(CloudConfigurationError):
+        await consumer.drain_once()
 
 
 async def test_ack_only_after_success_and_preserve_event_id() -> None:
