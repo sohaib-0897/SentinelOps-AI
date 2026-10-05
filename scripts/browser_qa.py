@@ -2,6 +2,7 @@
 import argparse
 import asyncio
 import json
+from datetime import datetime
 from pathlib import Path
 
 import httpx
@@ -75,7 +76,8 @@ async def main() -> None:
             report["responsive"].append({"width":width,"horizontal_overflow":overflow})
             assert not overflow
         assert not report["console_errors"], report["console_errors"]
-        timestamps = [entry['timestamp'] for entry in resolved['timeline']]
+        timeline = (await api.get(f"/api/v1/incidents/{incident['id']}/timeline")).json()
+        timestamps = [datetime.fromisoformat(entry['timestamp']) for entry in timeline]
         assert timestamps == sorted(timestamps)
         audit = (await api.get('/api/v1/audit')).json()
         operations = {entry['operation'] for entry in audit if entry['incident_id'] == incident['id']}
