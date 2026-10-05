@@ -10,7 +10,14 @@ from sentinelops.agents.root_cause import RootCauseAgent
 from sentinelops.agents.triage import TriageAgent
 from sentinelops.agents.verification import VerificationAgent
 from sentinelops.domain.lifecycle import ConflictError, transition
-from sentinelops.domain.models import AuditEvent, Incident, IncidentEvent, State, event_time
+from sentinelops.domain.models import (
+    AuditEvent,
+    HistoricalIncident,
+    Incident,
+    IncidentEvent,
+    State,
+    event_time,
+)
 from sentinelops.providers.contracts import (
     EventBus,
     IncidentRepository,
@@ -44,7 +51,12 @@ class IncidentWorkflow:
         return incident
 
     async def persist(self, incident: Incident, kind: str, audit: list[AuditEvent] | None = None) -> None:
-        event = DomainEvent(type=kind,incident_id=incident.id,data={"version":incident.version+1}).model_dump(mode="json")
+        data: dict[str, Any] = {"version": incident.version+1}
+        if kind == "IncidentResolved" and incident.postmortem and incident.root_cause:
+            data["history"] = HistoricalIncident(id=incident.id, title=incident.title,
+                signature=" ".join(incident.symptoms), cause=incident.root_cause.cause,
+                remediation=incident.postmortem.remediation, outcome="resolved").model_dump(mode="json", exclude={"similarity"})
+        event = DomainEvent(type=kind,incident_id=incident.id,data=data).model_dump(mode="json")
         await self.repository.save(incident,audit,[event])
         try:
             await self.bus.publish(event)

@@ -5,6 +5,7 @@ locals {
     api_run        = { identity = "api", role = "roles/run.viewer" }
     api_vertex     = { identity = "api", role = "roles/aiplatform.user" }
     api_bq         = { identity = "api", role = "roles/bigquery.jobUser" }
+    analytics_bq   = { identity = "analytics", role = "roles/bigquery.jobUser" }
     api_sql_client = { identity = "api", role = "roles/cloudsql.client" }
     api_sql_user   = { identity = "api", role = "roles/cloudsql.instanceUser" }
     telemetry_logs = { identity = "telemetry", role = "roles/logging.viewer" }
@@ -45,6 +46,12 @@ resource "google_bigquery_table_iam_member" "history_read" {
   table_id   = google_bigquery_table.history.table_id
   role       = "roles/bigquery.dataViewer"
   member     = google_service_account.runtime["api"].member
+}
+resource "google_bigquery_table_iam_member" "history_write" {
+  dataset_id = google_bigquery_dataset.operations.dataset_id
+  table_id   = google_bigquery_table.history.table_id
+  role       = "roles/bigquery.dataEditor"
+  member     = google_service_account.runtime["analytics"].member
 }
 # The API has no direct Cloud Run mutation role. Its executor impersonation is
 # limited to this identity, which can update only the allow-listed orders-api.

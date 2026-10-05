@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from sentinelops.analytics_worker import AnalyticsConsumer
+from sentinelops.domain.models import HistoricalIncident
 from sentinelops.providers.events import DomainEvent
 
 
@@ -36,3 +37,23 @@ async def test_duplicate_delivery_keeps_stable_id_and_oversize_is_not_acked() ->
     assert result == {"accepted": 2, "retry_pending": 1}
     assert [call.args[0]["id"] for call in analytics.record_event.call_args_list] == [event.id, event.id]
     assert sdk.acknowledge.call_args.kwargs["request"]["ack_ids"] == ["first", "duplicate"]
+
+
+async def test_history_must_persist_before_ack_and_preserve_incident_provenance() -> None:
+    incident = HistoricalIncident(id="incident-1", title="Outage", signature="pool", cause="bad_deployment", remediation="rollback")
+    event = DomainEvent(type="IncidentResolved", incident_id=incident.id, data={"history":incident.model_dump(mode="json")})
+    sdk = MagicMock()
+    sdk.pull.return_value.received_messages = [SimpleNamespace(ack_id="ack", message=SimpleNamespace(data=event.model_dump_json().encode()))]
+    history = MagicMock(seed=AsyncMock(side_effect=RuntimeError("index write failed")))
+    analytics = MagicMock(record_event=AsyncMock())
+    consumer = AnalyticsConsumer("test-project", "analytics", analytics, sdk, history)
+    assert await consumer.drain_once() == {"accepted":0,"retry_pending":1}
+    sdk.acknowledge.assert_not_called()
+    history.seed.side_effect = None
+    assert await consumer.drain_once() == {"accepted":1,"retry_pending":0}
+    assert history.seed.call_args.args[0][0].id == incident.id
+    event.data["history"]["id"] = "other-incident"
+    sdk.pull.return_value.received_messages[0].message.data = event.model_dump_json().encode()
+    sdk.reset_mock()
+    assert (await consumer.drain_once())["retry_pending"] == 1
+    sdk.acknowledge.assert_not_called()
