@@ -123,6 +123,13 @@ resource "google_cloud_run_v2_service_iam_member" "dashboard_invoker" {
   role     = "roles/run.invoker"
   member   = each.value
 }
+resource "google_cloud_run_v2_service_iam_member" "api_operator" {
+  for_each = var.deploy_runtimes ? var.dashboard_invokers : toset([])
+  name     = google_cloud_run_v2_service.api[0].name
+  location = var.region
+  role     = "roles/run.invoker"
+  member   = each.value
+}
 resource "google_cloud_run_v2_job" "worker" {
   for_each            = var.deploy_runtimes ? toset(["telemetry", "analytics"]) : toset([])
   name                = "${local.prefix}-${each.key}"
