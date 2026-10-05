@@ -67,6 +67,7 @@ class MetricPoint(Model):
     db_connections: float = Field(ge=0, le=1)
     requests: int = Field(ge=0, le=10000000)
     revision: str = "api-v1"
+    available_metrics: list[str] = Field(default_factory=lambda: ["error_rate", "latency_ms", "cpu", "memory", "db_connections", "requests"])
 
 
 class LogEntry(Model):

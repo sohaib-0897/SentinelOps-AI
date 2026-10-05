@@ -20,7 +20,8 @@ class InvestigatorAgent:
             point = metrics[-1]
             onset = next((m.timestamp for m in metrics if threshold_exceeded(m)), point.timestamp)
             evidence.append(Evidence(source="metrics", summary=f"Error rate {point.error_rate:.1%}, p95 latency {point.latency_ms:.0f}ms, DB connections {point.db_connections:.0%}", timestamp=onset, data={"series": [m.model_dump(mode="json") for m in metrics], "latest": point.model_dump(mode="json"), "onset": onset.isoformat()}))
-            evidence.append(Evidence(source="metrics", summary=f"CPU utilization {'remained normal' if point.cpu < .5 else 'elevated'} at {point.cpu:.0%}", data={"cpu": point.cpu}))
+            if "cpu" in point.available_metrics:
+                evidence.append(Evidence(source="metrics", summary=f"CPU utilization {'remained normal' if point.cpu < .5 else 'elevated'} at {point.cpu:.0%}", data={"cpu": point.cpu}))
         for deployment in deployments[-3:]:
             evidence.append(Evidence(source="deployments", summary=f"Revision {deployment.revision} deployed; previous revision {deployment.previous_revision}", timestamp=deployment.timestamp, data=deployment.model_dump(mode="json")))
             context.incident.timeline.append(IncidentEvent(timestamp=deployment.timestamp, kind="DeploymentCreated", message=f"Revision {deployment.revision} deployed", data={"revision": deployment.revision}))

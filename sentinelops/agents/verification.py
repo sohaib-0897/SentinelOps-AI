@@ -31,6 +31,7 @@ class VerificationAgent:
         after_logs = [entry for entry in logs if boundary and entry.timestamp > boundary]
         expected = incident.remediation.actions[0].parameters.get("revision") if incident.remediation else None
         checks = {
+            "metric_availability": bool(points) and all({"error_rate", "latency_ms", "cpu", "memory"} <= set(p.available_metrics) for p in points),
             "five_samples": len(points) >= 5,
             "error_rate": bool(points) and all(p.error_rate <= .01 for p in points),
             "latency": bool(points) and all(p.latency_ms <= 200 for p in points),

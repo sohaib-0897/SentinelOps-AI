@@ -26,7 +26,7 @@ class RootCauseAgent:
             cause, score, description = "configuration_regression", .92, "Changed upstream configuration coincides with connection failures"
         elif "memory pressure" in text and point.memory >= .9:
             cause, score, description = "memory_regression", .90, "Memory pressure and heap growth correlate with sustained resource exhaustion"
-        elif "pool exhaustion" in text and point.db_connections >= .9:
+        elif "pool exhaustion" in text and (point.db_connections >= .9 or ("db_connections" not in point.available_metrics and point.error_rate >= .05)):
             if deployment_evidence:
                 deployment = Deployment.model_validate(deployment_evidence.data)
                 seconds = (onset - deployment.timestamp).total_seconds()
@@ -48,7 +48,7 @@ class RootCauseAgent:
         supporting.extend(e.id for e in incident.evidence if e.source == "configuration" and cause in {"bad_deployment", "configuration_regression"})
         supporting.extend(e.id for e in incident.evidence if e.source == "history" and e.data.get("cause") == cause)
         cpu_evidence = next((e for e in incident.evidence if "cpu" in e.data), None)
-        contradictions = [cpu_evidence.id] if cpu_evidence and point.cpu < .5 and cause == "bad_deployment" else []
+        contradictions = [cpu_evidence.id] if cpu_evidence and "cpu" in point.available_metrics and point.cpu < .5 and cause == "bad_deployment" else []
         primary = Hypothesis(cause=cause, description=description, confidence=score, supporting_evidence=supporting if cause != "unknown" else [metric_evidence.id], contradicting_evidence=contradictions)
         alternatives = [Hypothesis(cause="database_exhaustion" if cause != "database_exhaustion" else "dependency_timeout", description="Alternative explanation requires independent confirmation", confidence=.42 if cause == "bad_deployment" else .12, supporting_evidence=[metric_evidence.id], contradicting_evidence=[log_evidence[0].id]), Hypothesis(cause="resource_saturation", description="Resource saturation considered; CPU and memory compared with baseline", confidence=.10, supporting_evidence=[metric_evidence.id], contradicting_evidence=[cpu_evidence.id] if cpu_evidence else [])]
         incident.hypotheses = sorted([primary, *alternatives], key=lambda h: h.confidence, reverse=True)
