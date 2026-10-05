@@ -16,7 +16,9 @@
     "real_demo_service_recovered",
     "five_fresh_samples_verified",
     "incident_resolved",
-    "postmortem_generated"
+    "postmortem_generated",
+    "timeline_order_verified",
+    "approval_execution_audit_verified"
   ],
   "console_errors": [],
   "responsive": [
@@ -33,7 +35,8 @@
       "horizontal_overflow": false
     }
   ],
-  "incident_id": "68579964-dc75-4253-a018-fbc70a81c710",
+  "sse_reconnect": "two real proxy streams returned persisted-state resync",
+  "incident_id": "e0bfb161-6d6d-4f02-b0de-85f3959ea55f",
   "state": "RESOLVED",
   "verification": {
     "recovered": true,
@@ -53,6 +56,6 @@
       "service_health": true,
       "revision": true
     },
-    "timestamp": "2026-10-05T09:07:46.780774Z"
+    "timestamp": "2026-10-05T16:47:22.218660Z"
   }
 }

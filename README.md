@@ -11,7 +11,7 @@ The FastAPI control plane uses Python 3.12, Pydantic v2, SQLAlchemy/Alembic and 
 | Synthetic evaluation | Twelve fixture scenarios; evidence rules and expected outcomes share the regression fixtures. This is not a held-out operational benchmark. |
 | Real GCP | Not yet deployed or verified. IAM enforcement, live SQL/BigQuery, model access, scheduling and cloud recovery remain pending. |
 
-Current evidence is retained in [local verification](docs/verification/local-e2e.json), [evaluation](evals/results/latest.json), [development log](docs/DEVELOPMENT_LOG.md) and GitHub Actions. A mock test or Terraform validation does not establish a working cloud deployment.
+Current evidence is retained in the [local completion report](docs/verification/local-complete.md), [browser observations](docs/verification/local-e2e.json), [evaluation](evals/results/latest.json), [development log](docs/DEVELOPMENT_LOG.md) and GitHub Actions. A mock test or Terraform validation does not establish a working cloud deployment.
 
 Install Python 3.12, Node.js 22 and uv. From this checkout:
 
