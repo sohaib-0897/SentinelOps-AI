@@ -40,6 +40,10 @@ variable "operator_secret_version" {
   type        = string
   default     = "1"
 }
+variable "telemetry_secret_version" {
+  type    = string
+  default = "1"
+}
 variable "sql_tier" {
   type    = string
   default = "db-custom-1-3840"

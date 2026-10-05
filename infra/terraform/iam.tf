@@ -20,8 +20,14 @@ resource "google_project_iam_member" "runtime" {
   member   = google_service_account.runtime[each.value.identity].member
 }
 resource "google_secret_manager_secret_iam_member" "operator" {
-  for_each  = toset(["api", "dashboard", "telemetry"])
+  for_each  = toset(["api", "dashboard"])
   secret_id = google_secret_manager_secret.operator.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = google_service_account.runtime[each.key].member
+}
+resource "google_secret_manager_secret_iam_member" "telemetry" {
+  for_each  = toset(["api", "telemetry"])
+  secret_id = google_secret_manager_secret.telemetry.id
   role      = "roles/secretmanager.secretAccessor"
   member    = google_service_account.runtime[each.key].member
 }

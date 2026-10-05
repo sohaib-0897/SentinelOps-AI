@@ -50,6 +50,15 @@ resource "google_cloud_run_v2_service" "api" {
           }
         }
       }
+      env {
+        name = "TELEMETRY_TOKEN"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.telemetry.secret_id
+            version = var.telemetry_secret_version
+          }
+        }
+      }
       startup_probe {
         http_get { path = "/health" }
         period_seconds    = 10
@@ -66,7 +75,7 @@ resource "google_cloud_run_v2_service" "api" {
       error_message = "Deploy an immutable API image digest."
     }
   }
-  depends_on = [google_project_iam_member.runtime, google_secret_manager_secret_iam_member.operator, google_sql_user.api]
+  depends_on = [google_project_iam_member.runtime, google_secret_manager_secret_iam_member.operator, google_secret_manager_secret_iam_member.telemetry, google_sql_user.api]
 }
 resource "google_cloud_run_v2_service" "dashboard" {
   count               = var.deploy_runtimes ? 1 : 0
@@ -163,11 +172,11 @@ resource "google_cloud_run_v2_job" "worker" {
         dynamic "env" {
           for_each = each.key == "telemetry" ? [1] : []
           content {
-            name = "OPERATOR_TOKEN"
+            name = "TELEMETRY_TOKEN"
             value_source {
               secret_key_ref {
-                secret  = google_secret_manager_secret.operator.secret_id
-                version = var.operator_secret_version
+                secret  = google_secret_manager_secret.telemetry.secret_id
+                version = var.telemetry_secret_version
               }
             }
           }
@@ -175,7 +184,7 @@ resource "google_cloud_run_v2_job" "worker" {
       }
     }
   }
-  depends_on = [google_project_iam_member.runtime, google_pubsub_subscription_iam_member.consume, google_bigquery_table_iam_member.analytics_write, google_secret_manager_secret_iam_member.operator]
+  depends_on = [google_project_iam_member.runtime, google_pubsub_subscription_iam_member.consume, google_bigquery_table_iam_member.analytics_write, google_bigquery_table_iam_member.history_write, google_secret_manager_secret_iam_member.telemetry]
 }
 resource "google_cloud_run_v2_job_iam_member" "scheduler" {
   for_each = google_cloud_run_v2_job.worker

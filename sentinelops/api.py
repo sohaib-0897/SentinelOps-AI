@@ -49,7 +49,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from fastapi.responses import JSONResponse
         if request.url.path.startswith("/api/") and configuration.operator_token:
             supplied = request.headers.get("Authorization", "").removeprefix("Bearer ")
-            if not secrets.compare_digest(supplied,configuration.operator_token):
+            allowed = secrets.compare_digest(supplied, configuration.operator_token)
+            if request.url.path.rstrip("/") == "/api/v1/telemetry" and configuration.telemetry_token:
+                allowed = allowed or secrets.compare_digest(supplied, configuration.telemetry_token)
+            if not allowed:
                 return JSONResponse(status_code=401,content={"detail":"Operator authentication required"})
         length = request.headers.get("Content-Length")
         if length and (not length.isdigit() or int(length) > 1000000):
@@ -70,6 +73,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if configuration.app_env == "production":
             raise HTTPException(status_code=401, detail="Operator authentication required")
         return "local-operator"
+
+    async def telemetry_operator(request: Request) -> str:
+        supplied = request.headers.get("Authorization", "").removeprefix("Bearer ")
+        if configuration.telemetry_token and secrets.compare_digest(supplied, configuration.telemetry_token):
+            return "telemetry-worker"
+        return await operator(request)
 
     async def require(incident_id: str) -> Incident:
         try:
@@ -149,7 +158,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from sentinelops.ingestion import TelemetryBatch, ingest
 
     @app.post("/api/v1/telemetry", status_code=202)
-    async def telemetry_ingestion(body: TelemetryBatch, actor: str = Depends(operator)) -> Any:
+    async def telemetry_ingestion(body: TelemetryBatch, actor: str = Depends(telemetry_operator)) -> Any:
         return await ingest(runtime, body)
 
     @app.get("/api/v1/services/{service_id}/metrics")

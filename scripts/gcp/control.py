@@ -107,10 +107,10 @@ class Deployment:
         self.values["deploy_runtimes"] = False
         self.apply()
         outputs = self.output()
-        secret_id = outputs["operator_secret"]
-        versions = json.loads(self.gcloud("secrets", "versions", "list", secret_id, "--filter=state:ENABLED", "--format=json", capture=True))
-        if not versions:
-            self.gcloud("secrets", "versions", "add", secret_id, "--data-file=-", data=secrets.token_hex(32).encode())
+        for secret_id in [outputs["operator_secret"], outputs["telemetry_secret"]]:
+            versions = json.loads(self.gcloud("secrets", "versions", "list", secret_id, "--filter=state:ENABLED", "--format=json", capture=True))
+            if not versions:
+                self.gcloud("secrets", "versions", "add", secret_id, "--data-file=-", data=secrets.token_hex(32).encode())
         # No token value is written to disk, logs, arguments, Terraform or Git.
         user = outputs["cloud_sql_user"]
         if not re.fullmatch(r"[a-z0-9@.-]+", user):
@@ -149,6 +149,10 @@ class Deployment:
         if not versions:
             raise RuntimeError("Bootstrap the operator secret before runtime deployment")
         self.values["operator_secret_version"] = str(max(int(v["name"].rsplit("/", 1)[-1]) for v in versions))
+        versions = json.loads(self.gcloud("secrets", "versions", "list", outputs["telemetry_secret"], "--filter=state:ENABLED", "--format=json", capture=True))
+        if not versions:
+            raise RuntimeError("Bootstrap the ingestion secret before runtime deployment")
+        self.values["telemetry_secret_version"] = str(max(int(v["name"].rsplit("/", 1)[-1]) for v in versions))
         self.values["deploy_runtimes"] = True
         self.apply()
         outputs = self.output()

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./sentinelops.db"
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
     operator_token: str = Field(default="", repr=False)
+    telemetry_token: str = Field(default="", repr=False)
     incident_provider: Literal["local"] = "local"
     log_provider: Literal["local", "gcp"] = "local"
     metrics_provider: Literal["synthetic", "gcp"] = "synthetic"
@@ -40,6 +41,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def production_requires_security(self) -> "Settings":
+        if self.app_env == "production" and self.metrics_provider == "gcp" and (len(self.telemetry_token) < 32 or self.telemetry_token == self.operator_token):
+            raise ValueError("Cloud telemetry requires a separate ingestion token of at least 32 characters")
         if self.app_env == "production" and "*" in self.cors_origins:
             raise ValueError("Production CORS must use explicit origins")
         if self.app_env == "production" and self.remediation_provider == "gcp" and not self.remediation_service_account:

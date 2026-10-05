@@ -31,7 +31,7 @@ async def poll_once(settings: Settings, api_url: str, audience: str = "") -> dic
     from sentinelops.providers.gcp.monitoring import GCPMonitoringMetricsProvider
     batch = await collect(GCPLoggingProvider(settings.gcp_project_id),GCPMonitoringMetricsProvider(settings.gcp_project_id),CloudRunDeploymentProvider(settings.gcp_project_id,settings.gcp_region))
     async with httpx.AsyncClient(timeout=60) as client:
-        response = await client.post(api_url.rstrip("/")+"/api/v1/telemetry", json=batch.model_dump(mode="json"),headers=await api_headers(client,audience,settings.operator_token))
+        response = await client.post(api_url.rstrip("/")+"/api/v1/telemetry", json=batch.model_dump(mode="json"),headers=await api_headers(client,audience,settings.telemetry_token or settings.operator_token))
         response.raise_for_status()
         return dict(response.json())
 

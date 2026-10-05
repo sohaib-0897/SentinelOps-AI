@@ -12,7 +12,7 @@ Do not request API keys, passwords or service-account JSON. The user account nee
 
 No real project is recorded in the example variables. No cloud resources or secrets have been created by the local implementation session. Cloud-capable SDKs and ADK have been installed/tested with mocks or construction only.
 
-The minimum initial commands are described in `gcp-deployment.md`. The server operator token is generated directly into Secret Manager during authorized bootstrap. All runtime access uses ADC, service identities, scoped impersonation or optional GitHub federation. Optional notification channels and GitHub environment variables can be configured after the first live deployment; they are not prerequisites for local completion.
+The minimum initial commands are described in `gcp-deployment.md`. Separate server operator and ingestion tokens are generated directly into Secret Manager during authorized bootstrap. All runtime access uses ADC, service identities, scoped impersonation or optional GitHub federation. Optional notification channels and GitHub environment variables can be configured after the first live deployment; they are not prerequisites for local completion.
 
 Still unverified: Google resource/API acceptance, Cloud SQL role grants and PostgreSQL backfills, Cloud Run identity tokens and IAM conditions, scheduler invocation, SDK data shapes, Monitoring availability/lag and alert delivery, Pub/Sub ordering/redelivery/dead letters, BigQuery MERGE/canonical views/vector index, Vertex model access and ADK responses, cloud traffic rollback and fresh-sample recovery. Keep README/cloud status honest until each live check actually passes.
 

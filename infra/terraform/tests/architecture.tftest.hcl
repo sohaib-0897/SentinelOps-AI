@@ -24,6 +24,10 @@ run "foundation_is_private_and_non_destructive" {
     condition     = !contains([for grant in google_project_iam_member.runtime : grant.role], "roles/run.admin")
     error_message = "Runtime identities cannot receive broad Run admin."
   }
+  assert {
+    condition     = !contains(keys(google_secret_manager_secret_iam_member.operator), "telemetry") && contains(keys(google_secret_manager_secret_iam_member.telemetry), "telemetry")
+    error_message = "The telemetry worker must never receive the operator secret."
+  }
 }
 run "runtimes_use_digests_and_private_invokers" {
   command = plan

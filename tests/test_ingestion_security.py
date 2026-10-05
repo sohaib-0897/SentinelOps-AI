@@ -36,3 +36,14 @@ def test_auth_scope_future_clock_and_scenario_boundaries(tmp_path: Path) -> None
         assert client.post("/api/v1/demo/start", json={"scenario": "bad-deployment"}, headers=headers).status_code == 200
         assert client.post("/api/v1/telemetry", json={}, headers=headers).status_code == 409
         assert app.state.runtime.simulation.step == 0
+
+
+def test_telemetry_credential_cannot_read_approve_execute_or_stream(tmp_path: Path) -> None:
+    app = create_app(Settings(app_env="test", demo_mode=False, operator_token="operator", telemetry_token="ingestion-only", database_url=f"sqlite+aiosqlite:///{tmp_path/'scope.db'}", _env_file=None))
+    with TestClient(app) as client:
+        headers = {"Authorization": "Bearer ingestion-only"}
+        assert client.post("/api/v1/telemetry", json={}, headers=headers).status_code == 202
+        for route in ["/api/v1/incidents", "/api/v1/events", "/api/v1/audit"]:
+            assert client.get(route, headers=headers).status_code == 401
+        for action in ["approve-remediation", "execute-remediation", "investigate"]:
+            assert client.post(f"/api/v1/incidents/any/{action}", json={}, headers=headers).status_code == 401

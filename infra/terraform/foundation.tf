@@ -36,6 +36,14 @@ resource "google_secret_manager_secret" "operator" {
   }
   depends_on = [google_project_service.required]
 }
+resource "google_secret_manager_secret" "telemetry" {
+  secret_id = "${local.prefix}-telemetry-token"
+  labels    = local.labels
+  replication {
+    auto {}
+  }
+  depends_on = [google_project_service.required]
+}
 resource "google_sql_database_instance" "incidents" {
   name                = "${local.prefix}-incidents"
   region              = var.region
