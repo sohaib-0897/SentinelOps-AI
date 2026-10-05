@@ -5,7 +5,10 @@ import pytest
 
 from sentinelops.domain.lifecycle import ConflictError
 from sentinelops.domain.models import RemediationAction
-from sentinelops.providers.gcp.cloud_run import CloudRunDeploymentProvider, CloudRunRemediationProvider
+from sentinelops.providers.gcp.cloud_run import (
+    CloudRunDeploymentProvider,
+    CloudRunRemediationProvider,
+)
 
 
 def adapter():

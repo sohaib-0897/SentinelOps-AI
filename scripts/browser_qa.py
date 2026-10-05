@@ -1,4 +1,5 @@
 """Exercise the real UI, API and bounded demo service; retain portfolio screenshots."""
+import argparse
 import asyncio
 import json
 from pathlib import Path
@@ -8,18 +9,23 @@ from playwright.async_api import async_playwright
 
 
 async def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--api-url', default='http://127.0.0.1:8000')
+    parser.add_argument('--demo-url', default='http://127.0.0.1:8001')
+    parser.add_argument('--dashboard-url', default='http://127.0.0.1:3000')
+    args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     screenshots = root/"docs/screenshots"
     screenshots.mkdir(parents=True,exist_ok=True)
     report = {"flow":[],"console_errors":[],"responsive":[]}
-    async with httpx.AsyncClient(base_url="http://127.0.0.1:8000",timeout=30) as api, httpx.AsyncClient(base_url="http://127.0.0.1:8001",timeout=10) as demo, async_playwright() as playwright:
+    async with httpx.AsyncClient(base_url=args.api_url,timeout=30) as api, httpx.AsyncClient(base_url=args.demo_url,timeout=10) as demo, async_playwright() as playwright:
         browser = await playwright.chromium.launch(channel="chrome" if Path("C:/Program Files/Google/Chrome/Application/chrome.exe").exists() else None)
         page = await browser.new_page(viewport={"width":1440,"height":1050},device_scale_factor=1)
         page.on("pageerror",lambda error:report["console_errors"].append(str(error)))
         assert (await demo.get("/health")).json()["status"] == "healthy"
         assert (await demo.get("/api/items")).status_code == 200
         report["flow"].append("real_demo_service_healthy")
-        await page.goto("http://127.0.0.1:3000",wait_until="networkidle")
+        await page.goto(args.dashboard_url,wait_until="networkidle")
         await page.get_by_role("heading",name="Operational overview").wait_for()
         await page.screenshot(path=str(screenshots/"overview.png"),full_page=True)
         await page.get_by_role("button",name="Start Demo",exact=True).click()
@@ -39,7 +45,7 @@ async def main() -> None:
         assert (await demo.get("/api/orders")).status_code == 500
         assert (await api.post(f"/api/v1/incidents/{incident['id']}/execute-remediation")).status_code == 409
         report["flow"].extend(["deployment_observed","metrics_degraded","meaningful_failure_logs","sustained_alert_detected","incident_created","triage_tools_used","evidence_collected","multiple_hypotheses_ranked","historical_match_found","approval_gate_enforced"])
-        await page.goto(f"http://127.0.0.1:3000/incidents/{incident['id']}",wait_until="networkidle")
+        await page.goto(f"{args.dashboard_url}/incidents/{incident['id']}",wait_until="networkidle")
         await page.get_by_role("button",name="Approve Remediation",exact=True).wait_for()
         await page.screenshot(path=str(screenshots/"incident-awaiting-approval.png"),full_page=True)
         await page.get_by_role("tab",name="Evidence").click()
@@ -60,15 +66,31 @@ async def main() -> None:
         await page.get_by_text("Recovery verified · postmortem generated",exact=True).wait_for()
         await page.screenshot(path=str(screenshots/"incident-postmortem.png"),full_page=True)
         for route in ("/services","/metrics","/deployments","/postmortems","/system","/incidents"):
-            await page.goto("http://127.0.0.1:3000"+route,wait_until="networkidle")
+            await page.goto(args.dashboard_url+route,wait_until="networkidle")
             assert await page.get_by_role("heading",level=1).count() == 1
         for width in (390,768,1440):
             await page.set_viewport_size({"width":width,"height":900})
-            await page.goto("http://127.0.0.1:3000",wait_until="networkidle")
+            await page.goto(args.dashboard_url,wait_until="networkidle")
             overflow = await page.evaluate("document.documentElement.scrollWidth > innerWidth")
             report["responsive"].append({"width":width,"horizontal_overflow":overflow})
             assert not overflow
         assert not report["console_errors"], report["console_errors"]
+        timestamps = [entry['timestamp'] for entry in resolved['timeline']]
+        assert timestamps == sorted(timestamps)
+        audit = (await api.get('/api/v1/audit')).json()
+        operations = {entry['operation'] for entry in audit if entry['incident_id'] == incident['id']}
+        assert {'remediation_approved', 'execution_claimed', 'remediation_executed', 'recovery_verified'} <= operations
+        report['flow'].extend(['timeline_order_verified', 'approval_execution_audit_verified'])
+        reconnect = await page.evaluate("""async () => {
+          const connect = () => new Promise((resolve, reject) => {
+            const source = new EventSource('/api/v1/events');
+            const timeout = setTimeout(() => { source.close(); reject(new Error('SSE timeout')); }, 10000);
+            source.addEventListener('connected', event => {clearTimeout(timeout); source.close(); resolve(JSON.parse(event.data));});
+          });
+          return [await connect(), await connect()];
+        }""")
+        assert all(event['type'] == 'resync' for event in reconnect)
+        report['sse_reconnect'] = 'two real proxy streams returned persisted-state resync'
         report["incident_id"] = incident["id"]
         report["state"] = resolved["state"]
         report["verification"] = resolved["verification"]
