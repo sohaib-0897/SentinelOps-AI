@@ -9,9 +9,8 @@ from sentinelops.domain.lifecycle import ConflictError, transition
 from sentinelops.domain.models import AuditEvent, IncidentEvent, State
 from sentinelops.persistence import SQLiteIncidentRepository
 from sentinelops.providers.events import LocalEventBus
-from sentinelops.providers.local import DeterministicLLMProvider, LocalTelemetryProvider
-from sentinelops.providers.remediation import LocalRemediationProvider
-from sentinelops.providers.vectors import LocalVectorProvider
+from sentinelops.providers.factory import build_providers
+from sentinelops.providers.local import LocalTelemetryProvider
 from sentinelops.simulation import SimulationEngine
 from sentinelops.tools.operations import AgentTools
 from sentinelops.workflows.investigation import IncidentWorkflow
@@ -24,7 +23,8 @@ class Runtime:
         self.telemetry = LocalTelemetryProvider()
         self.bus = LocalEventBus(settings.event_buffer_size)
         self.simulation = SimulationEngine(self.telemetry)
-        self.workflow = IncidentWorkflow(self.repository, self.bus, AgentTools(self.telemetry, self.telemetry, self.telemetry, LocalVectorProvider()), DeterministicLLMProvider(), LocalRemediationProvider(self.telemetry, settings.demo_service_url if settings.connect_demo_service else None, settings.operator_token), delay=.5 if settings.app_env != "test" else 0)
+        providers = build_providers(settings,self.telemetry,self.bus)
+        self.workflow = IncidentWorkflow(self.repository, providers.events, AgentTools(providers.logs,providers.metrics,providers.deployments,providers.vectors), providers.llm,providers.remediation, delay=.5 if settings.app_env != "test" else 0)
         self.jobs: set[asyncio.Task[None]] = set()
         self.demo_task: asyncio.Task[None] | None = None
         self.control_lock = asyncio.Lock()
