@@ -44,7 +44,7 @@ def build_providers(settings: Settings, local: LocalTelemetryProvider, bus: Loca
         if settings.deployment_provider == "gcp":
             providers.deployments = deployments
         if settings.remediation_provider == "gcp":
-            providers.remediation = CloudRunRemediationProvider(deployments)
+            providers.remediation = CloudRunRemediationProvider(deployments, settings.remediation_service_account)
     if settings.vector_provider == "bigquery":
         from sentinelops.providers.gcp.vectors import BigQueryVectorProvider
         providers.vectors = BigQueryVectorProvider(settings.gcp_project_id,settings.bigquery_dataset)

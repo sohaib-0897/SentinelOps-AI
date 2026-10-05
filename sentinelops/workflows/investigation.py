@@ -23,13 +23,15 @@ from sentinelops.tools.operations import AgentTools, ServiceQuery
 
 
 class IncidentWorkflow:
-    def __init__(self, repository: IncidentRepository, bus: EventBus, tools: AgentTools, llm: LLMProvider, executor: RemediationProvider, delay: float = 0) -> None:
+    def __init__(self, repository: IncidentRepository, bus: EventBus, tools: AgentTools, llm: LLMProvider, executor: RemediationProvider, delay: float = 0, verification_attempts: int = 6, verification_interval: float = 1) -> None:
         self.repository = repository
         self.bus = bus
         self.tools = tools
         self.llm = llm
         self.executor = executor
         self.delay = delay
+        self.verification_attempts = verification_attempts
+        self.verification_interval = verification_interval
         self.locks: dict[str, asyncio.Lock] = {}
 
     def lock(self, incident_id: str) -> asyncio.Lock:
@@ -124,7 +126,7 @@ class IncidentWorkflow:
                 incident.timeline.append(IncidentEvent(timestamp=event_time(incident),kind="RemediationExecuted", actor=actor, message=plan.summary, data={"after_timestamp":boundary, "results":results}))
                 transition(incident, State.VERIFYING)
                 await self.persist(incident, "RemediationExecuted", [AuditEvent(incident_id=incident_id, actor=actor, operation="remediation_executed", details={"plan_id":plan.id, "results":results})])
-                await VerificationAgent().run(context)
+                await VerificationAgent(self.verification_attempts, self.verification_interval).run(context)
                 incident.tool_calls.extend(context.tools.calls)
                 if not incident.verification or not incident.verification.recovered:
                     transition(incident, State.FAILED)

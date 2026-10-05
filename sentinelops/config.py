@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     vector_provider: Literal["local", "bigquery"] = "local"
     llm_provider: Literal["deterministic", "vertex", "adk"] = "deterministic"
     remediation_provider: Literal["local", "gcp"] = "local"
+    remediation_service_account: str = ""
+    verification_attempts: int = Field(default=6, ge=1, le=30)
+    verification_interval: float = Field(default=1, ge=0, le=120)
     event_provider: Literal["local", "pubsub"] = "local"
     gcp_project_id: str = ""
     gcp_region: str = "us-central1"
@@ -37,6 +40,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def production_requires_security(self) -> "Settings":
+        if self.app_env == "production" and self.remediation_provider == "gcp" and not self.remediation_service_account:
+            raise ValueError("Production GCP remediation requires a separate executor identity")
         if self.app_env == "production" and (len(self.operator_token) < 32 or self.demo_mode):
             raise ValueError("Production requires DEMO_MODE=false and an OPERATOR_TOKEN of at least 32 characters")
         if self.app_env == "production" and not self.cloud_sql_instance and self.database_url.startswith("sqlite"):

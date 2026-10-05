@@ -30,7 +30,7 @@ class Runtime:
         self.bus = LocalEventBus(settings.event_buffer_size)
         self.simulation = SimulationEngine(self.telemetry)
         providers = build_providers(settings,self.telemetry,self.bus)
-        self.workflow = IncidentWorkflow(self.repository, providers.events, AgentTools(providers.logs,providers.metrics,providers.deployments,providers.vectors), providers.llm,providers.remediation, delay=.5 if settings.app_env != "test" else 0)
+        self.workflow = IncidentWorkflow(self.repository, providers.events, AgentTools(providers.logs,providers.metrics,providers.deployments,providers.vectors), providers.llm,providers.remediation, delay=.5 if settings.app_env != "test" else 0, verification_attempts=settings.verification_attempts, verification_interval=settings.verification_interval)
         self.jobs: set[asyncio.Task[None]] = set()
         self.demo_task: asyncio.Task[None] | None = None
         self.control_lock = asyncio.Lock()

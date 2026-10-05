@@ -1,4 +1,6 @@
+import importlib
 import itertools
+import re
 from typing import Any
 
 from sentinelops.domain.lifecycle import ConflictError
@@ -10,6 +12,8 @@ from sentinelops.security.approval import validate_action
 class CloudRunDeploymentProvider:
     def __init__(self, project: str, region: str, services_sdk: Any = None, revisions_sdk: Any = None, allowed_services: frozenset[str] = frozenset({"orders-api"})) -> None:
         require_project(project)
+        if not re.fullmatch(r"[a-z]+-[a-z]+[0-9]", region):
+            raise ValueError("Invalid Cloud Run region")
         self.project, self.region = project, region
         self.allowed_services = allowed_services
         self.services_sdk = services_sdk if services_sdk is not None else client("google.cloud.run_v2", "ServicesClient")
@@ -61,10 +65,27 @@ class CloudRunDeploymentProvider:
 
 
 class CloudRunRemediationProvider:
-    def __init__(self, deployments: CloudRunDeploymentProvider) -> None:
+    def __init__(self, deployments: CloudRunDeploymentProvider, executor_identity: str = "") -> None:
         self.deployments = deployments
+        if executor_identity and not re.fullmatch(r"[a-z][a-z0-9-]{4,29}@[a-z][a-z0-9-]{4,62}\.iam\.gserviceaccount\.com", executor_identity):
+            raise ValueError("Invalid executor service account")
+        self.executor_identity = executor_identity
+
+    def privileged_deployments(self) -> CloudRunDeploymentProvider:
+        auth = importlib.import_module("google.auth")
+        impersonation = importlib.import_module("google.auth.impersonated_credentials")
+        source, _ = auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+        credentials = impersonation.Credentials(source_credentials=source, target_principal=self.executor_identity,
+                                               target_scopes=["https://www.googleapis.com/auth/cloud-platform"], lifetime=300)
+        return CloudRunDeploymentProvider(self.deployments.project, self.deployments.region,
+            client("google.cloud.run_v2", "ServicesClient", credentials=credentials),
+            client("google.cloud.run_v2", "RevisionsClient", credentials=credentials),
+            self.deployments.allowed_services)
 
     async def execute(self, action: RemediationAction) -> dict[str, Any]:
         if action.capability not in {"rollback_demo_revision", "change_demo_traffic_split"}:
             raise ConflictError("Only explicit revision traffic changes are supported by the GCP executor")
-        return await self.deployments.rollback(action)
+        validate_action(action, action.service_id)
+        self.deployments.name(action.service_id)
+        executor = self.privileged_deployments() if self.executor_identity else self.deployments
+        return await executor.rollback(action)
