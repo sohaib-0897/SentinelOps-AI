@@ -20,7 +20,7 @@ class RemediationAgent:
                 return
             capability = "rollback_demo_revision"
             parameters = {"revision": deployments[-1].previous_revision, "expected_revision": deployments[-1].revision}
-            summary = f"Rollback {deployments[-1].revision} to known healthy {parameters['revision']}"
+            summary = f"Rollback {deployments[-1].revision} to previous revision {parameters['revision']}"
         elif root.cause in {"database_exhaustion", "traffic_spike", "redis_saturation", "latency_degradation"}:
             capability = "simulate_scale_up"
             parameters = {"instances": "2"}

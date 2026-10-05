@@ -21,8 +21,14 @@ class GCPPubSubEventBus:
         payload = validated.model_dump_json().encode()
         if len(payload) > 9000000:
             raise ValueError("Event exceeds safe Pub/Sub payload size")
-        future = self.sdk.publish(self.topic, payload, ordering_key=validated.incident_id or "system", event_id=validated.id, event_type=validated.type)
-        await cloud_call(lambda: future.result(timeout=30))
+        ordering_key = validated.incident_id or "system"
+        future = self.sdk.publish(self.topic, payload, ordering_key=ordering_key, event_id=validated.id, event_type=validated.type)
+        try:
+            await cloud_call(lambda: future.result(timeout=30))
+        except Exception:
+            # Ordered publishing pauses a key after failure; the durable outbox must be able to retry it.
+            self.sdk.resume_publish(self.topic, ordering_key)
+            raise
 
 
 class MirroredEventBus:

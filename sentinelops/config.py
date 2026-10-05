@@ -40,6 +40,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def production_requires_security(self) -> "Settings":
+        if self.app_env == "production" and "*" in self.cors_origins:
+            raise ValueError("Production CORS must use explicit origins")
         if self.app_env == "production" and self.remediation_provider == "gcp" and not self.remediation_service_account:
             raise ValueError("Production GCP remediation requires a separate executor identity")
         if self.app_env == "production" and (len(self.operator_token) < 32 or self.demo_mode):
