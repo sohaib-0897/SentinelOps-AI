@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-2.5-flash"
     bigquery_dataset: str = "sentinelops"
     pubsub_topic: str = "sentinelops-events"
+    pubsub_subscription: str = "sentinelops-analytics"
     demo_service_url: str = "http://127.0.0.1:8001"
     connect_demo_service: bool = False
     event_buffer_size: int = Field(default=256, ge=16, le=4096)
