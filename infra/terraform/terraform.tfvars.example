@@ -1,0 +1,9 @@
+project_id  = "your-project-id"
+region      = "us-central1"
+environment = "production"
+# First apply creates foundations. Deployment tooling supplies immutable image digests.
+deploy_runtimes = false
+api_image       = ""
+dashboard_image = ""
+# Optional named IAM principal; the dashboard remains private.
+dashboard_invokers = []
