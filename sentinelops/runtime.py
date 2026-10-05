@@ -35,6 +35,8 @@ class Runtime:
         self.demo_task: asyncio.Task[None] | None = None
         self.control_lock = asyncio.Lock()
         self.last_error: str | None = None
+        self.dispatcher_task: asyncio.Task[None] | None = None
+        self.outbox_error: str | None = None
 
     async def initialize(self) -> None:
         await self.repository.initialize()
@@ -49,9 +51,10 @@ class Runtime:
                 transition(incident, State.FAILED)
                 incident.timeline.append(IncidentEvent(kind="failure", message="Process restarted during workflow; operator review required before retry"))
                 await self.repository.save(incident, [AuditEvent(incident_id=incident.id, actor="system", operation="interrupted_workflow")])
+        self.dispatcher_task = asyncio.create_task(self.dispatch_events())
 
     async def close(self) -> None:
-        tasks = [*self.jobs, *([self.demo_task] if self.demo_task else [])]
+        tasks = [*self.jobs, *([self.demo_task] if self.demo_task else []), *([self.dispatcher_task] if self.dispatcher_task else [])]
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
@@ -127,3 +130,15 @@ class Runtime:
 
     def demo_status(self) -> dict[str, Any]:
         return {"scenario":self.simulation.scenario.name if self.simulation.scenario else None, "step":self.simulation.step, "paused":self.simulation.paused, "speed":self.simulation.speed, "error":self.last_error}
+
+    async def dispatch_events(self) -> None:
+        while True:
+            await asyncio.sleep(3)
+            for event in await self.repository.pending_events():
+                try:
+                    await self.workflow.bus.publish(event)
+                    await self.repository.mark_delivered(str(event["id"]))
+                    self.outbox_error = None
+                except Exception:
+                    self.outbox_error = "Event delivery pending; durable outbox will retry"
+                    break

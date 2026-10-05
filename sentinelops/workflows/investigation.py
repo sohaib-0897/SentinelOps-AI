@@ -42,8 +42,14 @@ class IncidentWorkflow:
         return incident
 
     async def persist(self, incident: Incident, kind: str, audit: list[AuditEvent] | None = None) -> None:
-        await self.repository.save(incident, audit)
-        await self.bus.publish(DomainEvent(type=kind, incident_id=incident.id, data={"incident": incident.model_dump(mode="json")}).model_dump(mode="json"))
+        event = DomainEvent(type=kind,incident_id=incident.id,data={"version":incident.version+1}).model_dump(mode="json")
+        await self.repository.save(incident,audit,[event])
+        try:
+            await self.bus.publish(event)
+            await self.repository.mark_delivered(str(event["id"]))
+        except Exception:
+            # Durable outbox retries delivery. Publication failure must not undo execution claims.
+            return
 
     def context(self, incident: Incident) -> AgentContext:
         tools = AgentTools(self.tools.logs, self.tools.metrics, self.tools.deployments, self.tools.vectors)

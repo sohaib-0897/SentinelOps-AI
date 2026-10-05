@@ -4,7 +4,7 @@ from typing import Any, cast
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import JSON, Integer, String, select, update
+from sqlalchemy import JSON, Boolean, Integer, String, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -36,6 +36,13 @@ class AuditRow(Base):
 class RuntimeRow(Base):
     __tablename__ = "runtime_state"
     key: Mapped[str] = mapped_column(String(128), primary_key=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
+class OutboxRow(Base):
+    __tablename__ = "event_outbox"
+    id: Mapped[str] = mapped_column(String(64),primary_key=True)
+    delivered: Mapped[bool] = mapped_column(Boolean,default=False,index=True)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON)
 
 
@@ -74,7 +81,7 @@ class SQLiteIncidentRepository:
             rows = (await session.scalars(select(IncidentRow).order_by(IncidentRow.id).limit(limit).offset(offset))).all()
             return sorted((Incident.model_validate(row.payload) for row in rows), key=lambda i: i.started_at, reverse=True)
 
-    async def save(self, incident: Incident, audit: list[AuditEvent] | None = None) -> None:
+    async def save(self, incident: Incident, audit: list[AuditEvent] | None = None, events: list[dict[str, Any]] | None = None) -> None:
         previous = incident.version
         candidate = incident.model_copy(deep=True)
         candidate.version = previous + 1
@@ -91,6 +98,8 @@ class SQLiteIncidentRepository:
                     raise ConflictError("Incident changed; reload before retrying")
             for event in audit or []:
                 session.add(AuditRow(id=event.id, incident_id=event.incident_id, payload=event.model_dump(mode="json")))
+            for envelope in events or []:
+                session.add(OutboxRow(id=envelope["id"],delivered=False,payload=envelope))
         incident.version = candidate.version
         incident.updated_at = candidate.updated_at
 
@@ -110,3 +119,12 @@ class SQLiteIncidentRepository:
         async with self.sessions() as session:
             row = await session.get(RuntimeRow, key)
             return row.payload if row else None
+
+    async def pending_events(self, limit: int = 100) -> list[dict[str, Any]]:
+        async with self.sessions() as session:
+            rows = (await session.scalars(select(OutboxRow).where(OutboxRow.delivered.is_(False)).limit(limit))).all()
+            return [row.payload for row in rows]
+
+    async def mark_delivered(self, event_id: str) -> None:
+        async with self.sessions.begin() as session:
+            await session.execute(update(OutboxRow).where(OutboxRow.id == event_id).values(delivered=True))
