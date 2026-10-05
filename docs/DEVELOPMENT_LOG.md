@@ -13,3 +13,4 @@ Git commits are the authoritative milestone identifiers. Each entry is included 
 | 07-providers | 2026-10-05 | This commit; parent `b86939f` | Typed cloud boundaries and bounded local event fan-out | Event ordering, overflow resync and disconnect cleanup tests passed; ruff; mypy | None for this milestone. |
 | 07-local-providers | 2026-10-05 | This commit; parent `c6ef6ff` | Local telemetry snapshots, health and deterministic explanation provider | Provider snapshot and unknown-service contract tests; ruff; mypy passed | None for this milestone. |
 | 08-simulation | 2026-10-05 | This commit; parent `e0df08b` | Twelve deterministic safe scenarios and virtual deployment clock | 129 backend tests; ruff; mypy passed | Telemetry is synthetic |
+| 09-detection | 2026-10-05 | This commit; parent `e7ccbf2` | Sustained threshold detection with active-incident deduplication | Healthy, transient and sustained detection tests; ruff; mypy passed | None for this milestone. |
