@@ -43,7 +43,7 @@ class Runtime:
         snapshot = await self.repository.get_runtime("telemetry")
         if snapshot:
             self.telemetry.restore(snapshot)
-        else:
+        elif self.settings.demo_mode:
             for _ in range(8):
                 self.telemetry.append(self.telemetry.healthy_sample())
         for incident in await self.repository.list_incidents(limit=1000):

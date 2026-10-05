@@ -143,6 +143,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def services() -> Any:
         return [await runtime.workflow.tools.deployments.get_service_health("orders-api")]
 
+    from sentinelops.ingestion import TelemetryBatch, ingest
+
+    @app.post("/api/v1/telemetry", status_code=202)
+    async def telemetry_ingestion(body: TelemetryBatch, actor: str = Depends(operator)) -> Any:
+        return await ingest(runtime, body)
+
     @app.get("/api/v1/services/{service_id}/metrics")
     async def metrics(service_id: str, limit: Annotated[int, Query(ge=1, le=600)] = 120) -> Any:
         if service_id != "orders-api":
