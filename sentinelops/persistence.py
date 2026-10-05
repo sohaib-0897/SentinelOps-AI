@@ -1,4 +1,4 @@
-import asyncio
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any, cast
 
@@ -40,9 +40,12 @@ class RuntimeRow(Base):
 
 
 class SQLiteIncidentRepository:
-    def __init__(self, database_url: str) -> None:
+    def __init__(self, database_url: str, async_creator: Callable[[], Awaitable[Any]] | None = None) -> None:
         self.database_url = database_url
-        self.engine = create_async_engine(database_url, connect_args={"timeout": 30} if "sqlite" in database_url else {})
+        options: dict[str, Any] = {"connect_args":{"timeout":30}} if "sqlite" in database_url else {"pool_pre_ping":True}
+        if async_creator:
+            options["async_creator"] = async_creator
+        self.engine = create_async_engine(database_url, **options)
         self.sessions = async_sessionmaker(self.engine, expire_on_commit=False)
 
     async def initialize(self) -> None:
@@ -52,7 +55,11 @@ class SQLiteIncidentRepository:
         else:
             config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
             config.set_main_option("sqlalchemy.url", self.database_url)
-            await asyncio.to_thread(command.upgrade, config, "head")
+            async with self.engine.begin() as connection:
+                def migrate(sync_connection: Any) -> None:
+                    config.attributes["connection"] = sync_connection
+                    command.upgrade(config,"head")
+                await connection.run_sync(migrate)
 
     async def close(self) -> None:
         await self.engine.dispose()

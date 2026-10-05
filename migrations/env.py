@@ -26,5 +26,7 @@ if context.is_offline_mode():
     context.configure(url=config.get_main_option("sqlalchemy.url"), target_metadata=Base.metadata, literal_binds=True)
     with context.begin_transaction():
         context.run_migrations()
+elif config.attributes.get("connection") is not None:
+    apply(config.attributes["connection"])
 else:
     asyncio.run(run())

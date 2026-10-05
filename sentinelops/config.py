@@ -30,11 +30,16 @@ class Settings(BaseSettings):
     demo_service_url: str = "http://127.0.0.1:8001"
     connect_demo_service: bool = False
     event_buffer_size: int = Field(default=256, ge=16, le=4096)
+    cloud_sql_instance: str = ""
+    cloud_sql_user: str = ""
+    cloud_sql_database: str = "sentinelops"
 
     @model_validator(mode="after")
     def production_requires_security(self) -> "Settings":
         if self.app_env == "production" and (len(self.operator_token) < 32 or self.demo_mode):
             raise ValueError("Production requires DEMO_MODE=false and an OPERATOR_TOKEN of at least 32 characters")
+        if self.app_env == "production" and not self.cloud_sql_instance and self.database_url.startswith("sqlite"):
+            raise ValueError("Production requires persistent PostgreSQL or a CLOUD_SQL_INSTANCE; SQLite is local-only")
         return self
 
 

@@ -19,7 +19,13 @@ from sentinelops.workflows.investigation import IncidentWorkflow
 class Runtime:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.repository = SQLiteIncidentRepository(settings.database_url)
+        self.cloud_sql: Any = None
+        if settings.cloud_sql_instance:
+            from sentinelops.providers.gcp.cloud_sql import CloudSQLConnectionFactory
+            self.cloud_sql = CloudSQLConnectionFactory(settings.cloud_sql_instance,settings.cloud_sql_user,settings.cloud_sql_database)
+            self.repository = SQLiteIncidentRepository("postgresql+asyncpg://",self.cloud_sql.connect)
+        else:
+            self.repository = SQLiteIncidentRepository(settings.database_url)
         self.telemetry = LocalTelemetryProvider()
         self.bus = LocalEventBus(settings.event_buffer_size)
         self.simulation = SimulationEngine(self.telemetry)
@@ -50,6 +56,8 @@ class Runtime:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
         await self.repository.close()
+        if self.cloud_sql:
+            await self.cloud_sql.close()
 
     def launch_investigation(self, incident_id: str) -> None:
         async def run() -> None:
