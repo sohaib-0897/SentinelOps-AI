@@ -7,3 +7,10 @@ api_image       = ""
 dashboard_image = ""
 # Optional named IAM principal; the dashboard remains private.
 dashboard_invokers = []
+# The private orders-api demo has no cloud privileges or runtime injection.
+# Disable this if the project already hosts an orders-api service.
+create_demo_target = true
+# Optional federation; resolve the immutable repository ID before enabling.
+enable_github_deployment = false
+github_repository       = "sohaib-0897/SentinelOps-AI"
+github_repository_id    = "1405311636"
