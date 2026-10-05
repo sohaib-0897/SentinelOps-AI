@@ -64,6 +64,11 @@ resource "google_project_iam_member" "executor" {
 }
 resource "google_service_account_iam_member" "executor_token" {
   service_account_id = google_service_account.runtime["executor"].name
-  role               = "roles/iam.serviceAccountTokenCreator"
+  role               = google_project_iam_custom_role.executor_token.name
   member             = google_service_account.runtime["api"].member
+}
+resource "google_project_iam_custom_role" "executor_token" {
+  role_id     = "sentinelops_${var.environment}_executor_token"
+  title       = "SentinelOps executor access token only"
+  permissions = ["iam.serviceAccounts.getAccessToken"]
 }

@@ -6,7 +6,8 @@ locals {
     "bigquery.googleapis.com", "sqladmin.googleapis.com", "secretmanager.googleapis.com",
     "monitoring.googleapis.com", "logging.googleapis.com", "cloudscheduler.googleapis.com",
     "aiplatform.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com",
-    "sts.googleapis.com", "cloudresourcemanager.googleapis.com", "serviceusage.googleapis.com"
+    "sts.googleapis.com", "cloudresourcemanager.googleapis.com", "serviceusage.googleapis.com",
+    "storage.googleapis.com"
   ])
 }
 resource "google_project_service" "required" {
@@ -23,7 +24,7 @@ resource "google_artifact_registry_repository" "images" {
 }
 resource "google_service_account" "runtime" {
   for_each     = toset(["api", "dashboard", "telemetry", "analytics", "executor", "scheduler"])
-  account_id   = "${local.prefix}-${each.key}"
+  account_id   = "sops-${var.environment}-${each.key}"
   display_name = "SentinelOps ${each.key} (${var.environment})"
   depends_on   = [google_project_service.required]
 }
@@ -75,6 +76,24 @@ resource "google_sql_user" "api" {
   name     = trimsuffix(google_service_account.runtime["api"].email, ".gserviceaccount.com")
   instance = google_sql_database_instance.incidents.name
   type     = "CLOUD_IAM_SERVICE_ACCOUNT"
+}
+resource "google_storage_bucket" "bootstrap" {
+  name                        = "${var.project_id}-${local.prefix}-bootstrap"
+  location                    = var.region
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+  force_destroy               = false
+  labels                      = local.labels
+  lifecycle_rule {
+    condition { age = 1 }
+    action { type = "Delete" }
+  }
+  depends_on = [google_project_service.required]
+}
+resource "google_storage_bucket_iam_member" "sql_bootstrap" {
+  bucket = google_storage_bucket.bootstrap.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_sql_database_instance.incidents.service_account_email_address}"
 }
 resource "google_pubsub_topic" "events" {
   name       = "${local.prefix}-events"
