@@ -67,6 +67,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def health() -> dict[str, str]:
         return {"status":"healthy", "mode":configuration.app_env}
 
+    @app.get("/api/v1/events")
+    async def events(request: Request) -> Any:
+        from fastapi.responses import StreamingResponse
+
+        from sentinelops.streaming import stream_events
+        return StreamingResponse(stream_events(runtime, request), media_type="text/event-stream", headers={"Cache-Control":"no-cache, no-transform", "X-Accel-Buffering":"no"})
+
+    @app.get("/api/v1/incidents/{incident_id}/stream")
+    async def incident_stream(incident_id: str, request: Request) -> Any:
+        from fastapi.responses import StreamingResponse
+
+        from sentinelops.streaming import stream_events
+        await require(incident_id)
+        return StreamingResponse(stream_events(runtime, request, incident_id), media_type="text/event-stream", headers={"Cache-Control":"no-cache, no-transform", "X-Accel-Buffering":"no"})
+
     @app.get("/api/v1/incidents", response_model=list[Incident])
     async def incidents(limit: Annotated[int, Query(ge=1, le=1000)] = 100, offset: Annotated[int, Query(ge=0)] = 0) -> list[Incident]:
         return await runtime.repository.list_incidents(limit, offset)
