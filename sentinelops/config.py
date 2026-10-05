@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     metrics_provider: Literal["synthetic", "gcp"] = "synthetic"
     deployment_provider: Literal["local", "gcp"] = "local"
     vector_provider: Literal["local", "bigquery"] = "local"
-    llm_provider: Literal["deterministic", "vertex"] = "deterministic"
+    llm_provider: Literal["deterministic", "vertex", "adk"] = "deterministic"
     remediation_provider: Literal["local", "gcp"] = "local"
     event_provider: Literal["local", "pubsub"] = "local"
     gcp_project_id: str = ""

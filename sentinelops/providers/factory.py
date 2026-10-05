@@ -51,6 +51,9 @@ def build_providers(settings: Settings, local: LocalTelemetryProvider, bus: Loca
     if settings.llm_provider == "vertex":
         from sentinelops.providers.gcp.vertex import GeminiVertexAIProvider
         providers.llm = GeminiVertexAIProvider(settings.gcp_project_id,settings.vertex_location,settings.gemini_model)
+    if settings.llm_provider == "adk":
+        from sentinelops.providers.gcp.adk import ADKExplanationProvider
+        providers.llm = ADKExplanationProvider(settings.gcp_project_id, settings.vertex_location, settings.gemini_model)
     if settings.event_provider == "pubsub":
         from sentinelops.providers.gcp.pubsub import GCPPubSubEventBus, MirroredEventBus
         providers.events = MirroredEventBus(bus,GCPPubSubEventBus(settings.gcp_project_id,settings.pubsub_topic))
