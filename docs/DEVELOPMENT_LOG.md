@@ -15,3 +15,4 @@ Git commits are the authoritative milestone identifiers. Each entry is included 
 | 08-simulation | 2026-10-05 | This commit; parent `e0df08b` | Twelve deterministic safe scenarios and virtual deployment clock | 129 backend tests; ruff; mypy passed | Telemetry is synthetic |
 | 09-detection | 2026-10-05 | This commit; parent `e7ccbf2` | Sustained threshold detection with active-incident deduplication | Healthy, transient and sustained detection tests; ruff; mypy passed | None for this milestone. |
 | 20-history | 2026-10-05 | This commit; parent `8a114d9` | Seed seven historical incidents and deterministic TF-IDF retrieval | Relevant match and empty-query tests; ruff; mypy passed | None for this milestone. |
+| 11-tools | 2026-10-05 | This commit; parent `5a5ab29` | Validated operational tools, safe runbooks and common agent context | Tool values, path allowlist and invalid-query tests; ruff; mypy passed | None for this milestone. |
