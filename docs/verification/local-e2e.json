@@ -1,0 +1,58 @@
+{
+  "flow": [
+    "real_demo_service_healthy",
+    "deployment_observed",
+    "metrics_degraded",
+    "meaningful_failure_logs",
+    "sustained_alert_detected",
+    "incident_created",
+    "triage_tools_used",
+    "evidence_collected",
+    "multiple_hypotheses_ranked",
+    "historical_match_found",
+    "approval_gate_enforced",
+    "ui_approval_recorded",
+    "rollback_executed",
+    "real_demo_service_recovered",
+    "five_fresh_samples_verified",
+    "incident_resolved",
+    "postmortem_generated"
+  ],
+  "console_errors": [],
+  "responsive": [
+    {
+      "width": 390,
+      "horizontal_overflow": false
+    },
+    {
+      "width": 768,
+      "horizontal_overflow": false
+    },
+    {
+      "width": 1440,
+      "horizontal_overflow": false
+    }
+  ],
+  "incident_id": "68579964-dc75-4253-a018-fbc70a81c710",
+  "state": "RESOLVED",
+  "verification": {
+    "recovered": true,
+    "samples": 5,
+    "before_error_rate": 0.18,
+    "after_error_rate": 0.002,
+    "before_latency_ms": 1680.0,
+    "after_latency_ms": 85.0,
+    "regression_detected": false,
+    "checks": {
+      "metric_availability": true,
+      "five_samples": true,
+      "error_rate": true,
+      "latency": true,
+      "resources": true,
+      "logs": true,
+      "service_health": true,
+      "revision": true
+    },
+    "timestamp": "2026-10-05T09:07:46.780774Z"
+  }
+}
