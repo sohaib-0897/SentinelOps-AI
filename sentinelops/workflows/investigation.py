@@ -10,7 +10,7 @@ from sentinelops.agents.root_cause import RootCauseAgent
 from sentinelops.agents.triage import TriageAgent
 from sentinelops.agents.verification import VerificationAgent
 from sentinelops.domain.lifecycle import ConflictError, transition
-from sentinelops.domain.models import AuditEvent, Incident, IncidentEvent, State
+from sentinelops.domain.models import AuditEvent, Incident, IncidentEvent, State, event_time
 from sentinelops.providers.contracts import (
     EventBus,
     IncidentRepository,
@@ -100,7 +100,7 @@ class IncidentWorkflow:
         async with self.lock(incident_id):
             incident = await self.require(incident_id)
             approval = approve(incident, plan_id, actor)
-            incident.timeline.append(IncidentEvent(kind="RemediationApproved", actor=actor, message="Exact remediation plan approved", data={"plan_id":plan_id}))
+            incident.timeline.append(IncidentEvent(timestamp=event_time(incident),kind="RemediationApproved", actor=actor, message="Exact remediation plan approved", data={"plan_id":plan_id}))
             await self.persist(incident, "RemediationApproved", [AuditEvent(incident_id=incident_id, actor=actor, operation="remediation_approved", details=approval.model_dump(mode="json"))])
             return incident
 
@@ -121,7 +121,7 @@ class IncidentWorkflow:
                 for action in plan.actions:
                     results.append(await self.executor.execute(action))
                 plan.status = "executed"
-                incident.timeline.append(IncidentEvent(kind="RemediationExecuted", actor=actor, message=plan.summary, data={"after_timestamp":boundary, "results":results}))
+                incident.timeline.append(IncidentEvent(timestamp=event_time(incident),kind="RemediationExecuted", actor=actor, message=plan.summary, data={"after_timestamp":boundary, "results":results}))
                 transition(incident, State.VERIFYING)
                 await self.persist(incident, "RemediationExecuted", [AuditEvent(incident_id=incident_id, actor=actor, operation="remediation_executed", details={"plan_id":plan.id, "results":results})])
                 await VerificationAgent().run(context)
@@ -143,5 +143,5 @@ class IncidentWorkflow:
     async def fail(self, incident: Incident, error: Exception) -> None:
         if incident.state not in {State.FAILED, State.RESOLVED, State.CLOSED}:
             transition(incident, State.FAILED)
-        incident.timeline.append(IncidentEvent(kind="failure", message="Operation failed safely; inspect audit and retry investigation after review"))
+        incident.timeline.append(IncidentEvent(timestamp=event_time(incident),kind="failure", message="Operation failed safely; inspect audit and retry investigation after review"))
         await self.persist(incident, "WorkflowFailed", [AuditEvent(incident_id=incident.id, actor="system", operation="workflow_failed", details={"error_type":type(error).__name__})])

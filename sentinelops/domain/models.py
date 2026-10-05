@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any, Literal
 from uuid import uuid4
@@ -222,3 +222,8 @@ class Incident(Model):
         if value.tzinfo is None:
             raise ValueError("Timestamp must include a timezone")
         return value
+
+
+def event_time(incident: Incident) -> datetime:
+    """Keep workflow events after observed source events, including a synthetic virtual clock."""
+    return max(now(),incident.started_at,*(event.timestamp for event in incident.timeline)) + timedelta(milliseconds=1)

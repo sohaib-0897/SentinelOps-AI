@@ -33,5 +33,8 @@ async def test_complete_approved_workflow_and_concurrent_replay() -> None:
     resolved = await repository.get(incident.id)
     assert resolved.state == State.RESOLVED
     assert resolved.postmortem and resolved.verification.recovered
+    stages = [event for event in resolved.timeline if event.kind != "DeploymentCreated"]
+    assert stages == sorted(stages,key=lambda event:event.timestamp)
+    assert resolved.resolved_at >= resolved.started_at
     assert len(await repository.audit(incident.id)) == 4
     await repository.close()

@@ -1,4 +1,4 @@
-from sentinelops.domain.models import Incident, IncidentEvent, State, now
+from sentinelops.domain.models import Incident, IncidentEvent, State, event_time
 
 TRANSITIONS: dict[State, frozenset[State]] = {
     State.DETECTED: frozenset({State.TRIAGING, State.CLOSED, State.FAILED}),
@@ -23,7 +23,7 @@ def transition(incident: Incident, target: State, actor: str = "system") -> None
         raise ConflictError(f"Transition {incident.state} -> {target} is not allowed")
     previous = incident.state
     incident.state = target
-    incident.updated_at = now()
+    incident.updated_at = event_time(incident)
     if target == State.RESOLVED:
         incident.resolved_at = incident.updated_at
-    incident.timeline.append(IncidentEvent(kind="state", actor=actor, message=f"{previous} → {target}", data={"from": previous, "to": target}))
+    incident.timeline.append(IncidentEvent(timestamp=incident.updated_at,kind="state", actor=actor, message=f"{previous} → {target}", data={"from": previous, "to": target}))

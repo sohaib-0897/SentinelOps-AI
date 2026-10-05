@@ -1,5 +1,5 @@
 from sentinelops.agents.common import AgentContext
-from sentinelops.domain.models import Postmortem
+from sentinelops.domain.models import Postmortem, event_time
 
 
 class PostmortemAgent:
@@ -20,5 +20,6 @@ class PostmortemAgent:
             what_failed=["Regression reached the service before deployment health gates caught it"],
             prevention=["Add canary health gates for latency and errors", "Validate database pool and dependency configuration at startup", "Test bounded resource capacity before rollout"],
             follow_up_actions=["SRE: add rollout abort thresholds", "Service owner: add regression test for the observed failure signature", "Platform: review alert thresholds and runbook"],
+            generated_at=event_time(incident),
         )
         context.activity("POSTMORTEM", "Evidence-backed postmortem generated with timeline and follow-up actions")

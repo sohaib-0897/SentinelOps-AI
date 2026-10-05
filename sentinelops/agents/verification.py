@@ -41,4 +41,4 @@ class VerificationAgent:
             "revision": expected is None or health.revision == expected,
         }
         incident.verification = Verification(recovered=all(checks.values()), samples=len(points), before_error_rate=baseline.error_rate if baseline else 0, after_error_rate=mean(p.error_rate for p in points) if points else 1, before_latency_ms=baseline.latency_ms if baseline else 0, after_latency_ms=mean(p.latency_ms for p in points) if points else 120000, regression_detected=bool(points) and not all(checks.values()), checks=checks)
-        context.activity("VERIFICATION", f"Recovery {'confirmed' if incident.verification.recovered else 'not confirmed'} across {len(points)} post-remediation samples")
+        context.activity("VERIFICATION", f"Recovery {'confirmed' if incident.verification.recovered else 'not confirmed'} across {len(points)} post-remediation samples", points[-1].timestamp if points else None)
