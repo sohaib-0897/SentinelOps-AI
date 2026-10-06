@@ -1,0 +1,57 @@
+name: sentinelops
+services:
+  demo-service:
+    image: sentinelops-api:local
+    build: .
+    command: ["uvicorn", "sentinelops.demo_service:app", "--host", "0.0.0.0", "--port", "8001"]
+    environment:
+      APP_ENV: local
+      DEMO_MODE: "true"
+    ports:
+      - "127.0.0.1:${DEMO_PORT:-8001}:8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    read_only: true
+    tmpfs: ["/tmp"]
+    security_opt: ["no-new-privileges:true"]
+  incident-api:
+    image: sentinelops-api:local
+    build: .
+    environment:
+      APP_ENV: local
+      DEMO_MODE: "true"
+      DATABASE_URL: sqlite+aiosqlite:////data/sentinelops.db
+      CONNECT_DEMO_SERVICE: "true"
+      DEMO_SERVICE_URL: http://demo-service:8001
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    volumes: ["incident-data:/data"]
+    depends_on:
+      demo-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    read_only: true
+    tmpfs: ["/tmp"]
+    security_opt: ["no-new-privileges:true"]
+  dashboard:
+    image: sentinelops-dashboard:local
+    build: apps/dashboard
+    environment:
+      API_BASE_URL: http://incident-api:8000
+    ports:
+      - "127.0.0.1:${DASHBOARD_PORT:-3000}:3000"
+    depends_on:
+      incident-api:
+        condition: service_healthy
+    read_only: true
+    tmpfs: ["/tmp", "/app/.next/cache"]
+    security_opt: ["no-new-privileges:true"]
+volumes:
+  incident-data:

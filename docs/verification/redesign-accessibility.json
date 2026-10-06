@@ -1,0 +1,106 @@
+{
+  "verified_date": "2026-10-06",
+  "implementation_commit": "f2932ac",
+  "engine": "axe-core 4.13.0",
+  "browser": "Chrome",
+  "tags": [
+    "wcag2a",
+    "wcag2aa",
+    "wcag21aa"
+  ],
+  "view_checks": 18,
+  "detected_violations": 0,
+  "views": [
+    {
+      "view": "approval-review",
+      "violations": [],
+      "passes": 17
+    },
+    {
+      "view": "/",
+      "violations": [],
+      "passes": 24
+    },
+    {
+      "view": "/overview",
+      "violations": [],
+      "passes": 26
+    },
+    {
+      "view": "/incidents",
+      "violations": [],
+      "passes": 26
+    },
+    {
+      "view": "/incidents/bcc682e2-40ec-47ab-9833-a348104f6ff8",
+      "violations": [],
+      "passes": 29
+    },
+    {
+      "view": "/services",
+      "violations": [],
+      "passes": 22
+    },
+    {
+      "view": "/metrics",
+      "violations": [],
+      "passes": 22
+    },
+    {
+      "view": "/deployments",
+      "violations": [],
+      "passes": 22
+    },
+    {
+      "view": "/postmortems",
+      "violations": [],
+      "passes": 21
+    },
+    {
+      "view": "/system",
+      "violations": [],
+      "passes": 21
+    },
+    {
+      "view": "incident-Investigation",
+      "violations": [],
+      "passes": 29
+    },
+    {
+      "view": "incident-Evidence",
+      "violations": [],
+      "passes": 27
+    },
+    {
+      "view": "incident-Hypotheses",
+      "violations": [],
+      "passes": 29
+    },
+    {
+      "view": "incident-Timeline",
+      "violations": [],
+      "passes": 25
+    },
+    {
+      "view": "incident-Remediation",
+      "violations": [],
+      "passes": 27
+    },
+    {
+      "view": "incident-Postmortem",
+      "violations": [],
+      "passes": 25
+    },
+    {
+      "view": "approval-error",
+      "violations": [],
+      "passes": 19
+    },
+    {
+      "view": "command-empty",
+      "violations": [],
+      "passes": 14
+    }
+  ],
+  "scope": "Automated checks plus keyboard interaction checks; not a complete manual accessibility conformance audit."
+}

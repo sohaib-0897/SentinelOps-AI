@@ -1,0 +1,849 @@
+"use client";
+
+import Link from "next/link";
+import { useRef, useState } from "react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
+  Check,
+  CheckCircle2,
+  Clock3,
+  FileText,
+  GitBranch,
+  LockKeyhole,
+  ShieldCheck,
+  TriangleAlert,
+  X,
+} from "lucide-react";
+import { api, clockTime, isActive, label, percent } from "@/lib/api";
+import { containDialogFocus, navigateTabs } from "@/lib/keyboard";
+import type { Incident } from "@/lib/types";
+import { useOperations } from "@/lib/use-operations";
+import { Badge, Empty, Lifecycle, MetricChart } from "./primitives";
+import { Shell } from "./shell";
+
+const tabs = [
+  "Investigation",
+  "Evidence",
+  "Hypotheses",
+  "Timeline",
+  "Remediation",
+  "Postmortem",
+];
+
+export function IncidentDetail({
+  id,
+  initialTab = "Investigation",
+}: {
+  id: string;
+  initialTab?: string;
+}) {
+  const data = useOperations();
+  const [tab, setTab] = useState(
+    tabs.includes(initialTab) ? initialTab : "Investigation",
+  );
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const incident = data.incidents.find((i) => i.id === id);
+  const serviceMetrics = data.metrics.filter(
+    (m) => m.service_id === incident?.service_id,
+  );
+  const latest = serviceMetrics.at(-1);
+  const approvalDialog = useRef<HTMLDialogElement>(null);
+  const [reviewedPlan, setReviewedPlan] = useState<string | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
+  function reviewPlan() {
+    setReviewedPlan(incident?.remediation?.id ?? null);
+    setConfirmed(false);
+    setActionError(null);
+    approvalDialog.current?.showModal();
+  }
+  async function approveAndExecute() {
+    if (
+      !incident?.remediation ||
+      incident.remediation.id !== reviewedPlan ||
+      !confirmed
+    ) {
+      setActionError(
+        "The plan changed. Close this review and inspect the current plan.",
+      );
+      return;
+    }
+    setBusy(true);
+    setActionError(null);
+    try {
+      if (incident.remediation.status === "proposed")
+        await api<Incident>(`/incidents/${id}/approve-remediation`, {
+          plan_id: incident.remediation.id,
+          actor: "local-operator",
+        });
+      await api<Incident>(`/incidents/${id}/execute-remediation`, {});
+      await data.refresh();
+      approvalDialog.current?.close();
+    } catch (e) {
+      setActionError(
+        e instanceof Error ? e.message : "Remediation failed safely",
+      );
+      await data.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function investigate() {
+    setBusy(true);
+    setActionError(null);
+    try {
+      await api(`/incidents/${id}/investigate`, {});
+      await data.refresh();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Investigation failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+  const root = incident?.root_cause;
+  const primary = incident?.hypotheses.find(
+    (h) => h.id === root?.hypothesis_id,
+  );
+  const evidenceById = new Map(incident?.evidence.map((e) => [e.id, e]) ?? []);
+  const timeline = incident
+    ? [...incident.timeline].sort((a, b) =>
+        a.timestamp.localeCompare(b.timestamp),
+      )
+    : [];
+  const activities = timeline.filter((e) => e.kind === "agent");
+  const plan = incident?.remediation;
+
+  const remediation = (
+    <section className="panel remediation-panel">
+      <div className="panel-heading">
+        <div className="heading-inline">
+          <LockKeyhole size={15} className="orange" />
+          <h2>Controlled remediation</h2>
+        </div>
+        {plan && <Badge value={plan.status} />}
+      </div>
+      {plan ? (
+        <div className="panel-body">
+          <h3>{plan.summary}</h3>
+          <p className="muted">
+            An approval authorizes execution of this exact plan. Every action is
+            recorded in the audit log.
+          </p>
+          {plan.actions.map((action) => (
+            <div className="action-card" key={action.id}>
+              <div className="action-title">
+                <span className="mono">{action.capability}</span>
+                <Badge value={action.risk} />
+              </div>
+              <dl>
+                <div>
+                  <dt>Service</dt>
+                  <dd>{action.service_id}</dd>
+                </div>
+                {Object.entries(action.parameters).map(([key, value]) => (
+                  <div key={key}>
+                    <dt>{label(key)}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          ))}
+          <div className="approval-info">
+            <ShieldCheck size={14} />
+            <span>
+              {incident?.approvals.length
+                ? `Approved by ${incident.approvals.at(-1)?.actor}`
+                : "Human approval required"}{" "}
+              · Expires {clockTime(plan.expires_at)}
+            </span>
+          </div>
+          {incident?.state === "AWAITING_APPROVAL" && (
+            <button
+              className="button primary full-width"
+              disabled={busy}
+              onClick={reviewPlan}
+            >
+              <Check size={15} />
+              {busy
+                ? "Executing controlled recovery…"
+                : plan.status === "approved"
+                  ? "Review approved plan"
+                  : "Review remediation"}
+              <ArrowRight size={14} />
+            </button>
+          )}
+          {plan.status === "executed" && (
+            <div className="success-note">
+              <CheckCircle2 size={15} />
+              Approved remediation executed
+            </div>
+          )}
+        </div>
+      ) : (
+        <Empty
+          title="No action authorized"
+          description="A supported diagnosis and an approved plan are required before execution."
+        />
+      )}
+    </section>
+  );
+  const verification = (
+    <section className="panel">
+      <div className="panel-heading">
+        <div className="heading-inline">
+          <ShieldCheck size={15} className="green" />
+          <h2>Recovery verification</h2>
+        </div>
+      </div>
+      {incident?.verification ? (
+        <div className="panel-body">
+          <div className="verification-result">
+            <Badge
+              value={incident.verification.recovered ? "resolved" : "failed"}
+            />
+            <span>{incident.verification.samples} new telemetry samples</span>
+          </div>
+          <div className="before-after">
+            <div>
+              <small>Error rate</small>
+              <strong>
+                {percent(incident.verification.before_error_rate)}{" "}
+                <ArrowRight size={13} />{" "}
+                <span
+                  className={
+                    incident.verification.recovered ? "green" : "orange"
+                  }
+                >
+                  {percent(incident.verification.after_error_rate)}
+                </span>
+              </strong>
+            </div>
+            <div>
+              <small>p95 latency</small>
+              <strong>
+                {incident.verification.before_latency_ms.toFixed(0)}ms{" "}
+                <ArrowRight size={13} />{" "}
+                <span
+                  className={
+                    incident.verification.recovered ? "green" : "orange"
+                  }
+                >
+                  {incident.verification.after_latency_ms.toFixed(0)}ms
+                </span>
+              </strong>
+            </div>
+          </div>
+          <div className="check-grid">
+            {Object.entries(incident.verification.checks).map(
+              ([check, passed]) => (
+                <div key={check}>
+                  {passed ? (
+                    <CheckCircle2 size={13} className="green" />
+                  ) : (
+                    <X size={13} className="orange" />
+                  )}
+                  <span>{label(check)}</span>
+                </div>
+              ),
+            )}
+          </div>
+        </div>
+      ) : (
+        <Empty
+          title="Verification standing by"
+          description="Recovery requires five fresh healthy samples, clean logs, and service health checks."
+        />
+      )}
+    </section>
+  );
+  return (
+    <Shell
+      section="Incidents"
+      activeCount={data.incidents.filter((i) => isActive(i.state)).length}
+      connection={data.connection}
+      status={data.status}
+    >
+      <Link className="back-link" href="/incidents">
+        <ArrowLeft size={13} />
+        All incidents
+      </Link>
+      {data.error && (
+        <div className="error-banner" role="alert">
+          Connection interrupted: {data.error}
+          <button onClick={() => void data.refresh()}>Retry</button>
+        </div>
+      )}
+      {actionError && (
+        <div className="error-banner" role="alert">
+          {actionError}
+        </div>
+      )}
+      {!incident ? (
+        <>
+          <div className="page-heading">
+            <h1>
+              {data.loading ? "Loading incident" : "Incident unavailable"}
+            </h1>
+          </div>
+          <Empty
+            title={data.loading ? "Loading incident" : "Incident unavailable"}
+            description="Return to the incident registry or retry the API connection."
+          />
+        </>
+      ) : (
+        <>
+          <div className="incident-heading">
+            <div>
+              <div className="eyebrow">
+                INC-{id.slice(0, 6).toUpperCase()}{" "}
+                <span className="separator">/</span> INCIDENT COMMAND
+              </div>
+              <h1>{incident.title}</h1>
+              <div className="incident-heading-meta">
+                <Badge value={incident.severity} />
+                <Badge value={incident.state} />
+                <span>
+                  <Clock3 size={12} />
+                  {clockTime(incident.started_at)}
+                </span>
+                <span>
+                  <GitBranch size={12} />
+                  {incident.service_id}
+                </span>
+              </div>
+            </div>
+            <div className="investigation-mode">
+              <span className="status-dot" />
+              <div>
+                <strong>Evidence-driven investigation</strong>
+                <small>Agents explain findings with source records</small>
+              </div>
+            </div>
+          </div>
+          <Lifecycle incident={incident} />
+          <div className="incident-stats">
+            <div>
+              <span>Service</span>
+              <strong>{incident.service_id}</strong>
+            </div>
+            <div>
+              <span>Current service error rate</span>
+              <strong
+                className={
+                  latest && latest.error_rate > 0.05 ? "orange" : "green"
+                }
+              >
+                {latest ? percent(latest.error_rate) : "—"}
+              </strong>
+            </div>
+            <div>
+              <span>Current p95 latency</span>
+              <strong>
+                {latest?.latency_ms.toFixed(0) ?? "—"}
+                <small>ms</small>
+              </strong>
+            </div>
+            <div>
+              <span>Serving revision</span>
+              <strong>
+                {data.services.find((s) => s.id === incident.service_id)
+                  ?.revision ?? "—"}
+              </strong>
+            </div>
+            <div>
+              <span>Root cause score</span>
+              <strong className="green">
+                {root ? percent(root.confidence) : "Pending"}
+              </strong>
+            </div>
+          </div>
+          <div
+            className="incident-tabs"
+            role="tablist"
+            tabIndex={-1}
+            onKeyDown={navigateTabs}
+            aria-label="Incident views"
+          >
+            {tabs.map((name) => (
+              <button
+                key={name}
+                role="tab"
+                id={`incident-tab-${name}`}
+                aria-controls="incident-view"
+                aria-selected={tab === name}
+                tabIndex={tab === name ? 0 : -1}
+                className={tab === name ? "active" : ""}
+                onClick={() => setTab(name)}
+              >
+                {name}
+                {name === "Evidence" && <span>{incident.evidence.length}</span>}
+              </button>
+            ))}
+          </div>
+          <div
+            id="incident-view"
+            role="tabpanel"
+            aria-labelledby={`incident-tab-${tab}`}
+          >
+            {(tab === "Investigation" || tab === "Hypotheses") && (
+              <div className="detail-grid">
+                <div>
+                  <section className="panel root-panel">
+                    <div className="panel-heading">
+                      <div className="heading-inline">
+                        <CircleRoot />
+                        <h2>Probable root cause</h2>
+                      </div>
+                      {root && (
+                        <span className="score-tag">
+                          {percent(root.confidence)} evidence score
+                        </span>
+                      )}
+                    </div>
+                    {root ? (
+                      <div className="panel-body">
+                        <h3>{label(root.cause)}</h3>
+                        <p className="root-explanation">
+                          {root.explanation || primary?.description}
+                        </p>
+                        <div
+                          className="evidence-meter"
+                          role="img"
+                          aria-label={`${percent(root.confidence)} heuristic evidence score`}
+                        >
+                          {Array.from({ length: 20 }, (_, index) => (
+                            <span
+                              key={index}
+                              className={
+                                index / 20 < root.confidence ? "filled" : ""
+                              }
+                            />
+                          ))}
+                        </div>
+                        <div className="evidence-columns">
+                          <div>
+                            <h4>Supporting evidence</h4>
+                            {primary?.supporting_evidence.map((ref) => (
+                              <div className="evidence-fact" key={ref}>
+                                <Check size={12} className="green" />
+                                <span>
+                                  {evidenceById.get(ref)?.summary ?? ref}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          <div>
+                            <h4>Contradicting / context</h4>
+                            {primary?.contradicting_evidence.length ? (
+                              primary.contradicting_evidence.map((ref) => (
+                                <div className="evidence-fact" key={ref}>
+                                  <X size={12} className="orange" />
+                                  <span>
+                                    {evidenceById.get(ref)?.summary ?? ref}
+                                  </span>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="muted">
+                                No independent contradiction identified.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="method-note">
+                          Deterministic evidence score · heuristic, not a
+                          calibrated probability
+                        </div>
+                      </div>
+                    ) : (
+                      <Empty
+                        title={
+                          incident.state === "FAILED"
+                            ? "Diagnosis withheld"
+                            : "Investigation in progress"
+                        }
+                        description={
+                          incident.state === "FAILED"
+                            ? "The available evidence does not support an automatic remediation. Add operational evidence or review the runbook."
+                            : "Agents are correlating logs, metrics, revision history, and historical incidents."
+                        }
+                      />
+                    )}
+                  </section>
+                  <div className="two-columns">
+                    <section className="panel">
+                      <div className="panel-heading">
+                        <h2>Error rate · current service</h2>
+                      </div>
+                      <MetricChart metrics={serviceMetrics} compact />
+                    </section>
+                    <section className="panel">
+                      <div className="panel-heading">
+                        <h2>Latency · current service</h2>
+                      </div>
+                      <MetricChart
+                        metrics={serviceMetrics}
+                        kind="latency_ms"
+                        compact
+                      />
+                    </section>
+                  </div>
+                  <section className="panel">
+                    <div className="panel-heading">
+                      <h2>Ranked hypotheses</h2>
+                      <span className="count-pill">
+                        {incident.hypotheses.length}
+                      </span>
+                    </div>
+                    {incident.hypotheses.map((hypothesis, index) => (
+                      <div className="hypothesis-row" key={hypothesis.id}>
+                        <span className="hypothesis-rank">0{index + 1}</span>
+                        <div>
+                          <strong>{label(hypothesis.cause)}</strong>
+                          <p>{hypothesis.description}</p>
+                          <div className="score-bar">
+                            <span
+                              style={{ width: percent(hypothesis.confidence) }}
+                            />
+                          </div>
+                          <small>
+                            {hypothesis.supporting_evidence.length} supporting
+                            records · {hypothesis.contradicting_evidence.length}{" "}
+                            context / contradictions
+                          </small>
+                        </div>
+                        <span className={index === 0 ? "green" : "muted"}>
+                          {percent(hypothesis.confidence)}
+                        </span>
+                      </div>
+                    ))}
+                  </section>
+                  <section className="panel">
+                    <div className="panel-heading">
+                      <div className="heading-inline">
+                        <BookOpen size={15} />
+                        <h2>Historical matches</h2>
+                      </div>
+                      <span className="muted tiny">
+                        Local similarity retrieval
+                      </span>
+                    </div>
+                    {incident.historical_matches.map((match) => (
+                      <div className="history-row" key={match.id}>
+                        <div className="history-header">
+                          <span className="mono green">{match.id}</span>
+                          <span>{percent(match.similarity)} similarity</span>
+                        </div>
+                        <strong>{match.title}</strong>
+                        <p>{match.remediation}</p>
+                        <Badge value={match.outcome} />
+                      </div>
+                    ))}
+                  </section>
+                </div>
+                <div>
+                  {remediation}
+                  {verification}
+                  <section className="panel">
+                    <div className="panel-heading">
+                      <h2>Agent activity</h2>
+                      <span className="live-label">
+                        <span
+                          className={`status-dot ${data.connection === "live" ? "" : "warning"}`}
+                        />
+                        {data.connection === "live" ? "LIVE" : "RECONNECTING"}
+                      </span>
+                    </div>
+                    <div
+                      className="detail-activity"
+                      tabIndex={0}
+                      role="region"
+                      aria-label="Investigation activity records"
+                    >
+                      {activities.map((e) => (
+                        <div key={e.id}>
+                          <span className="activity-actor">{e.actor}</span>
+                          <time>{clockTime(e.timestamp)}</time>
+                          <p>{e.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                </div>
+              </div>
+            )}
+            {tab === "Evidence" && (
+              <section className="panel">
+                <div className="panel-heading">
+                  <h2>Collected source records</h2>
+                  <span className="count-pill">{incident.evidence.length}</span>
+                </div>
+                {incident.evidence.map((e) => (
+                  <div className="evidence-record" key={e.id}>
+                    <div className="history-header">
+                      <Badge value={e.source} />
+                      <time>{clockTime(e.timestamp)}</time>
+                    </div>
+                    <h3>{e.summary}</h3>
+                    <details>
+                      <summary>Inspect structured source data</summary>
+                      <pre tabIndex={0} role="region" aria-label="Structured source record">
+                        {JSON.stringify(e.data, null, 2)}
+                      </pre>
+                    </details>
+                    <small className="mono muted">{e.id}</small>
+                  </div>
+                ))}
+              </section>
+            )}
+            {tab === "Timeline" && (
+              <section className="panel">
+                <div className="panel-heading">
+                  <h2>Incident timeline</h2>
+                  <span className="muted tiny">
+                    Source timestamps · chronological
+                  </span>
+                </div>
+                <div className="timeline">
+                  {timeline.map((e) => (
+                    <div className="timeline-row" key={e.id}>
+                      <time>{clockTime(e.timestamp)}</time>
+                      <span className="timeline-dot" />
+                      <div>
+                        <span className="activity-actor">
+                          {e.actor} / {label(e.kind)}
+                        </span>
+                        <p>{e.message}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+            {tab === "Remediation" && (
+              <div className="two-columns">
+                {remediation}
+                {verification}
+              </div>
+            )}
+            {tab === "Postmortem" && (
+              <section className="panel">
+                <div className="panel-heading">
+                  <div className="heading-inline">
+                    <FileText size={15} />
+                    <h2>Incident postmortem</h2>
+                  </div>
+                  {incident.postmortem && (
+                    <button
+                      className="button small"
+                      onClick={() => {
+                        const blob = new Blob(
+                          [JSON.stringify(incident.postmortem, null, 2)],
+                          { type: "application/json" },
+                        );
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = `postmortem-${id}.json`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                    >
+                      Export JSON
+                    </button>
+                  )}
+                </div>
+                {incident.postmortem ? (
+                  <article className="postmortem">
+                    <div className="success-note">
+                      <CheckCircle2 size={16} />
+                      Recovery verified · postmortem generated
+                    </div>
+                    {[
+                      "summary",
+                      "impact",
+                      "root_cause",
+                      "detection",
+                      "response",
+                      "remediation",
+                    ].map((key) => (
+                      <section key={key}>
+                        <h3>{label(key)}</h3>
+                        <p>
+                          {String(
+                            incident.postmortem?.[
+                              key as keyof typeof incident.postmortem
+                            ],
+                          )}
+                        </p>
+                      </section>
+                    ))}
+                    {[
+                      "what_worked",
+                      "what_failed",
+                      "prevention",
+                      "follow_up_actions",
+                    ].map((key) => (
+                      <section key={key}>
+                        <h3>{label(key)}</h3>
+                        <ul>
+                          {(
+                            incident.postmortem?.[
+                              key as keyof typeof incident.postmortem
+                            ] as string[]
+                          ).map((item) => (
+                            <li key={item}>{item}</li>
+                          ))}
+                        </ul>
+                      </section>
+                    ))}
+                  </article>
+                ) : (
+                  <Empty
+                    title="Postmortem pending recovery"
+                    description="A factual report is generated after remediation succeeds and recovery is verified."
+                  />
+                )}
+              </section>
+            )}
+          </div>
+          {incident.state === "FAILED" && (
+            <div className="review-required">
+              <TriangleAlert size={17} />
+              <span>
+                Operator review required. Investigations can be retried;
+                privileged actions are never retried automatically.
+              </span>
+              <button
+                className="button small"
+                disabled={busy}
+                onClick={() => void investigate()}
+              >
+                Retry investigation
+              </button>
+            </div>
+          )}
+        </>
+      )}
+      <dialog
+        ref={approvalDialog}
+        onKeyDown={containDialogFocus}
+        className="approval-dialog"
+        aria-labelledby="approval-title"
+        onCancel={(e) => {
+          if (busy) e.preventDefault();
+        }}
+      >
+        <div className="dialog-heading">
+          <h2 id="approval-title">
+            <LockKeyhole size={18} /> Review & authorize
+          </h2>
+          <button
+            className="button icon-button"
+            aria-label="Close approval review"
+            disabled={busy}
+            onClick={() => approvalDialog.current?.close()}
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="panel-body">
+          <div className="eyebrow">HUMAN APPROVAL / EXACT PLAN</div>
+          <h3>{plan?.summary ?? "Plan unavailable"}</h3>
+          <p className="muted">
+            Confirm the target and parameters below. Approval is bound to this
+            incident and this specific plan.
+          </p>
+          <p className="dialog-plan-id">
+            Incident: {id}
+            <br />
+            Plan: {reviewedPlan}
+            <br />
+            Expires: {plan ? new Date(plan.expires_at).toLocaleString() : "—"}
+          </p>
+          {plan?.actions.map((action) => (
+            <div className="action-card" key={action.id}>
+              <div className="action-title">
+                <span className="mono">{action.capability}</span>
+                <Badge value={action.risk} />
+              </div>
+              <dl>
+                <div>
+                  <dt>Target service</dt>
+                  <dd>{action.service_id}</dd>
+                </div>
+                {Object.entries(action.parameters).map(([key, value]) => (
+                  <div key={key}>
+                    <dt>{label(key)}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          ))}
+          <div className="risk-callout">
+            This changes the target service. Execution is recorded in the audit
+            log and followed by recovery checks. Verify the scope before
+            continuing.
+          </div>
+          {actionError && (
+            <div className="inline-error" role="alert">
+              {actionError}
+            </div>
+          )}
+          {plan && reviewedPlan !== plan.id && (
+            <div role="alert" className="inline-error">
+              The plan changed. Close this drawer and review the new plan.
+            </div>
+          )}
+          <label className="approval-check">
+            <input
+              type="checkbox"
+              checked={confirmed}
+              onChange={(e) => setConfirmed(e.target.checked)}
+              disabled={busy}
+            />
+            <span>
+              I have reviewed this exact action and authorize its execution on
+              the named service.
+            </span>
+          </label>
+          <div className="drawer-actions">
+            <button
+              className="button primary"
+              disabled={
+                !confirmed ||
+                busy ||
+                !plan ||
+                plan.id !== reviewedPlan ||
+                incident?.state !== "AWAITING_APPROVAL"
+              }
+              onClick={() => void approveAndExecute()}
+            >
+              <ShieldCheck size={16} />
+              {busy ? "Executing controlled recovery…" : "Approve & execute"}
+            </button>
+            <button
+              className="button"
+              disabled={busy}
+              onClick={() => approvalDialog.current?.close()}
+            >
+              Cancel review
+            </button>
+          </div>
+        </div>
+      </dialog>
+    </Shell>
+  );
+}
+
+function CircleRoot() {
+  return (
+    <span className="root-symbol">
+      <ShieldCheck size={16} />
+    </span>
+  );
+}

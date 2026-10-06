@@ -1,0 +1,37 @@
+"""Enforce the actual ASGI body size, including chunked requests without a length."""
+from starlette.responses import JSONResponse
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+
+class RequestSizeLimit:
+    def __init__(self, app: ASGIApp, maximum: int = 1_000_000) -> None:
+        self.app, self.maximum = app, maximum
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        chunks: list[bytes] = []
+        size = 0
+        while True:
+            message = await receive()
+            if message["type"] == "http.disconnect":
+                return
+            chunk = message.get("body", b"")
+            size += len(chunk)
+            if size > self.maximum:
+                await JSONResponse({"detail": "Request exceeds allowed size"}, status_code=413)(scope, receive, send)
+                return
+            chunks.append(chunk)
+            if not message.get("more_body", False):
+                break
+        replayed = False
+
+        async def bounded_receive() -> Message:
+            nonlocal replayed
+            if replayed:
+                return await receive()
+            replayed = True
+            return {"type": "http.request", "body": b"".join(chunks), "more_body": False}
+
+        await self.app(scope, bounded_receive, send)

@@ -1,0 +1,55 @@
+{
+  "checks": [
+    "incident_tab_keyboard_navigation",
+    "loading_to_real_data",
+    "changed_plan_disables_execution",
+    "review_resets_acknowledgement",
+    "approval_failure_keeps_drawer_open",
+    "approval_failure_never_executes",
+    "command_search_focus_and_empty_state",
+    "unknown_route_404"
+  ],
+  "accessibility": [
+    {
+      "view": "incident-Investigation",
+      "violations": [],
+      "passes": 29
+    },
+    {
+      "view": "incident-Evidence",
+      "violations": [],
+      "passes": 27
+    },
+    {
+      "view": "incident-Hypotheses",
+      "violations": [],
+      "passes": 29
+    },
+    {
+      "view": "incident-Timeline",
+      "violations": [],
+      "passes": 25
+    },
+    {
+      "view": "incident-Remediation",
+      "violations": [],
+      "passes": 27
+    },
+    {
+      "view": "incident-Postmortem",
+      "violations": [],
+      "passes": 25
+    },
+    {
+      "view": "approval-error",
+      "violations": [],
+      "passes": 19
+    },
+    {
+      "view": "command-empty",
+      "violations": [],
+      "passes": 14
+    }
+  ],
+  "page_errors": []
+}

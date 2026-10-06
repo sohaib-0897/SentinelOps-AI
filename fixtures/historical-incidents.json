@@ -1,0 +1,9 @@
+[
+ {"id":"INC-007","title":"Orders v7 exhausted PostgreSQL pool","signature":"PostgreSQL pool exhaustion connection acquisition timeout bad deployment database latency HTTP 500","cause":"bad_deployment","remediation":"Rollback to previous healthy revision; restore DB pool size","outcome":"resolved"},
+ {"id":"INC-012","title":"Database connection limit reached","signature":"PostgreSQL pool exhaustion database connection acquisition timeout","cause":"database_exhaustion","remediation":"Increase bounded connection capacity and add pooling","outcome":"resolved"},
+ {"id":"INC-019","title":"Memory regression in new revision","signature":"Memory pressure heap growth memory utilization revision regression","cause":"memory_regression","remediation":"Rollback memory-leaking deployment","outcome":"resolved"},
+ {"id":"INC-023","title":"Payments upstream outage","signature":"Upstream payments dependency timeout latency","cause":"dependency_timeout","remediation":"Circuit breaker and dependency recovery","outcome":"resolved"},
+ {"id":"INC-031","title":"Redis connection saturation","signature":"Redis saturation cache timeout connection queue full","cause":"redis_saturation","remediation":"Reduce cache concurrency and scale capacity","outcome":"resolved"},
+ {"id":"INC-044","title":"Traffic spike saturates CPU","signature":"Traffic spike rate limiter backlog CPU saturation requests volume","cause":"traffic_spike","remediation":"Bounded autoscaling and rate limiting","outcome":"resolved"},
+ {"id":"INC-052","title":"Invalid payment host configuration","signature":"Configuration regression invalid upstream endpoint connection refused PAYMENTS_HOST","cause":"configuration_regression","remediation":"Restore configuration by rollback","outcome":"resolved"}
+]

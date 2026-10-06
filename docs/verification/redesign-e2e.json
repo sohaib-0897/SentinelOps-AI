@@ -1,0 +1,238 @@
+{
+  "checks": [
+    "landing_workflow_tabs",
+    "command_navigation",
+    "metric_sample_window",
+    "simulator_restart_pause_resume_speed",
+    "live_degradation",
+    "evidence_hypotheses_history",
+    "execution_blocked_before_approval",
+    "incident_tabs",
+    "drawer_cancel_focus_and_confirmation",
+    "exact_plan_approval",
+    "real_rollback",
+    "five_fresh_recovery_samples",
+    "real_service_recovered",
+    "postmortem_export",
+    "postmortem_direct_link",
+    "all_routes_responsive_and_command_shortcut",
+    "missing_incident_state",
+    "empty_state_fixture",
+    "error_state_fixture",
+    "retry_reconnect",
+    "chronological_timeline",
+    "durable_execution_audit",
+    "two_sse_proxy_reconnections"
+  ],
+  "page_errors": [],
+  "responsive": [
+    {
+      "width": 390,
+      "route": "/",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 390,
+      "route": "/overview",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 390,
+      "route": "/incidents",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 390,
+      "route": "/incidents/bcc682e2-40ec-47ab-9833-a348104f6ff8",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 390,
+      "route": "/services",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 390,
+      "route": "/metrics",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 390,
+      "route": "/deployments",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 390,
+      "route": "/postmortems",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 390,
+      "route": "/system",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 768,
+      "route": "/",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 768,
+      "route": "/overview",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 768,
+      "route": "/incidents",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 768,
+      "route": "/incidents/bcc682e2-40ec-47ab-9833-a348104f6ff8",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 768,
+      "route": "/services",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 768,
+      "route": "/metrics",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 768,
+      "route": "/deployments",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 768,
+      "route": "/postmortems",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 768,
+      "route": "/system",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "/",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "/overview",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "/incidents",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "/incidents/bcc682e2-40ec-47ab-9833-a348104f6ff8",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "/services",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "/metrics",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "/deployments",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "/postmortems",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 1440,
+      "route": "/system",
+      "horizontal_overflow": false
+    }
+  ],
+  "accessibility": [
+    {
+      "view": "approval-review",
+      "violations": [],
+      "passes": 17
+    },
+    {
+      "view": "/",
+      "violations": [],
+      "passes": 24
+    },
+    {
+      "view": "/overview",
+      "violations": [],
+      "passes": 26
+    },
+    {
+      "view": "/incidents",
+      "violations": [],
+      "passes": 26
+    },
+    {
+      "view": "/incidents/bcc682e2-40ec-47ab-9833-a348104f6ff8",
+      "violations": [],
+      "passes": 29
+    },
+    {
+      "view": "/services",
+      "violations": [],
+      "passes": 22
+    },
+    {
+      "view": "/metrics",
+      "violations": [],
+      "passes": 22
+    },
+    {
+      "view": "/deployments",
+      "violations": [],
+      "passes": 22
+    },
+    {
+      "view": "/postmortems",
+      "violations": [],
+      "passes": 21
+    },
+    {
+      "view": "/system",
+      "violations": [],
+      "passes": 21
+    }
+  ],
+  "incident_id": "bcc682e2-40ec-47ab-9833-a348104f6ff8",
+  "verification": {
+    "recovered": true,
+    "samples": 5,
+    "before_error_rate": 0.18,
+    "after_error_rate": 0.002,
+    "before_latency_ms": 1680.0,
+    "after_latency_ms": 85.0,
+    "regression_detected": false,
+    "checks": {
+      "metric_availability": true,
+      "five_samples": true,
+      "error_rate": true,
+      "latency": true,
+      "resources": true,
+      "logs": true,
+      "service_health": true,
+      "revision": true
+    },
+    "timestamp": "2026-10-06T15:16:13.452568Z"
+  }
+}

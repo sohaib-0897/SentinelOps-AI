@@ -1,0 +1,16 @@
+.git
+.venv
+.env*
+**/node_modules
+**/.next
+**/.local
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/*.db
+**/*.db-*
+**/*.tsbuildinfo
+infra
+docs/screenshots
+docs/verification
