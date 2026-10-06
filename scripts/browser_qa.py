@@ -26,7 +26,7 @@ async def main() -> None:
         assert (await demo.get("/health")).json()["status"] == "healthy"
         assert (await demo.get("/api/items")).status_code == 200
         report["flow"].append("real_demo_service_healthy")
-        await page.goto(args.dashboard_url,wait_until="networkidle")
+        await page.goto(args.dashboard_url+"/overview",wait_until="networkidle")
         await page.get_by_role("heading",name="Operational overview").wait_for()
         await page.screenshot(path=str(screenshots/"overview.png"),full_page=True)
         await page.get_by_role("button",name="Start Demo",exact=True).click()
@@ -47,14 +47,16 @@ async def main() -> None:
         assert (await api.post(f"/api/v1/incidents/{incident['id']}/execute-remediation")).status_code == 409
         report["flow"].extend(["deployment_observed","metrics_degraded","meaningful_failure_logs","sustained_alert_detected","incident_created","triage_tools_used","evidence_collected","multiple_hypotheses_ranked","historical_match_found","approval_gate_enforced"])
         await page.goto(f"{args.dashboard_url}/incidents/{incident['id']}",wait_until="networkidle")
-        await page.get_by_role("button",name="Approve Remediation",exact=True).wait_for()
+        await page.get_by_role("button",name="Review remediation",exact=True).wait_for()
         await page.screenshot(path=str(screenshots/"incident-awaiting-approval.png"),full_page=True)
         await page.get_by_role("tab",name="Evidence").click()
         await page.get_by_text("Collected source records",exact=True).wait_for()
         await page.get_by_role("tab",name="Timeline",exact=True).click()
         await page.get_by_text("Incident timeline",exact=True).wait_for()
         await page.get_by_role("tab",name="Remediation",exact=True).click()
-        await page.get_by_role("button",name="Approve Remediation",exact=True).click()
+        await page.get_by_role("button",name="Review remediation",exact=True).click()
+        await page.get_by_role("dialog").get_by_role("checkbox").check()
+        await page.get_by_role("button",name="Approve & execute",exact=True).click()
         await page.get_by_text("Approved remediation executed",exact=True).wait_for(timeout=30000)
         resolved = (await api.get(f"/api/v1/incidents/{incident['id']}")).json()
         assert resolved["state"] == "RESOLVED"
@@ -71,7 +73,7 @@ async def main() -> None:
             assert await page.get_by_role("heading",level=1).count() == 1
         for width in (390,768,1440):
             await page.set_viewport_size({"width":width,"height":900})
-            await page.goto(args.dashboard_url,wait_until="networkidle")
+            await page.goto(args.dashboard_url+"/overview",wait_until="networkidle")
             overflow = await page.evaluate("document.documentElement.scrollWidth > innerWidth")
             report["responsive"].append({"width":width,"horizontal_overflow":overflow})
             assert not overflow
