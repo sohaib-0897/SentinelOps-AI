@@ -4,7 +4,7 @@
 
 - Repository: `https://github.com/sohaib-0897/SentinelOps-AI.git`
 - Development branch: `codex/build-sentinelops`
-- Last recorded commit: `ae1d9bfff7ad52d3e814b77a70f3b7b221f55bfe`
+- UI redesign implementation commit: `f2932ac`; verification and handoff are recorded in the following documentation commit.
 - Local completion tag: `checkpoint/11-local-complete`; infrastructure tag: `checkpoint/10-infrastructure`.
 - Pull request to `main`: https://github.com/sohaib-0897/SentinelOps-AI/pull/1 (open; do not merge without instruction).
 - At handoff the tracked working tree was clean and all commits and checkpoint tags were pushed.
@@ -39,9 +39,18 @@ Live checks remain for IAM and identity exchange, Cloud SQL grants/migrations, C
 - Compose: `docker compose config --quiet`, `docker compose build`, `docker compose up -d --wait`.
 - Default ports are 8000 (API), 8001 (demo), and 3000 (dashboard). If occupied, set `API_PORT`, `DEMO_PORT`, and `DASHBOARD_PORT` before Compose.
 - On the development machine, SentinelOps was left running at API `http://127.0.0.1:18000`, demo `http://127.0.0.1:18001`, dashboard `http://127.0.0.1:13000`.
-- The demo UI's **Start Demo** button exercises a bad deployment, evidence gathering, approval, rollback, recovery checks, and postmortem.
+- The landing page is `/`; the operational dashboard is `/overview`. The updated Docker dashboard is running at `http://127.0.0.1:13000`.
+- **Start Demo** exercises a bad deployment. Open the incident, choose **Review remediation**, acknowledge the exact plan, then **Approve & execute** to run rollback, recovery checks, and postmortem generation.
 
-## Latest recorded verification
+## UI redesign handoff
+
+- All principal frontend routes now use the graphite/lime design system. The landing page includes a real provider-data preview; charts show thresholds and observed revision transitions.
+- Incident command includes lifecycle progress, evidence score visualization, source records, hypotheses, historical matches, exact-plan review drawer, verification, and postmortem export.
+- Command navigation supports Ctrl/Cmd+K. Tabs and dialogs have keyboard controls; scrollable evidence/activity regions are focusable.
+- No dependencies or backend/API contracts changed. See `docs/UI_REDESIGN.md`, `docs/verification/ui-redesign.md`, and `docs/screenshots/redesign/`.
+- Verification on 2026-10-06: frontend lint/typecheck/6 tests, native and Docker production builds, 23 end-to-end checks, 8 UI state checks, 27 route/viewport combinations, and 18 axe checks with zero detected violations. Recovery was verified with five fresh samples; the audit log and two SSE reconnects were checked.
+
+## Earlier local completion verification
 
 - Backend: 214 tests passed in both active and clean lock-file-installed environments; Ruff and strict mypy passed.
 - Frontend: six tests, lint, strict typecheck, production build passed; npm audit found zero vulnerabilities.

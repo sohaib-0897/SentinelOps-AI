@@ -13,6 +13,8 @@ The FastAPI control plane uses Python 3.12, Pydantic v2, SQLAlchemy/Alembic and 
 
 Current evidence is retained in the [local completion report](docs/verification/local-complete.md), [browser observations](docs/verification/local-e2e.json), [evaluation](evals/results/latest.json), [development log](docs/DEVELOPMENT_LOG.md) and GitHub Actions. A mock test or Terraform validation does not establish a working cloud deployment.
 
+The [interface redesign guide](docs/UI_REDESIGN.md) covers the landing page, operational workspace, charts, keyboard controls, screenshots, and verification.
+
 Install Python 3.12, Node.js 22 and uv. From this checkout:
 
 ```powershell
@@ -24,7 +26,7 @@ Set-Location ../..
 uv run python scripts/run_local.py --production
 ```
 
-Open `http://127.0.0.1:3000` and select **Start Demo**. Review the incident evidence and exact rollback plan, then select **Approve Remediation**. The launcher connects a real bounded demo HTTP service; investigation metrics remain deterministic synthetic observations. It preserves previous incidents and coordinates process shutdown.
+Open `http://127.0.0.1:3000` and enter the workspace at `/overview`. Select **Start Demo**, open the incident, and choose **Review remediation**. Inspect the exact rollback plan, acknowledge its scope, then select **Approve & execute**. The launcher connects a real bounded demo HTTP service; investigation metrics remain deterministic synthetic observations. It preserves previous incidents and coordinates process shutdown.
 
 Alternatively:
 

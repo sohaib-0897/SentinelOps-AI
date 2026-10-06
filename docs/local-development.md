@@ -51,3 +51,5 @@ Terraform checks need no cloud authentication:
 ```
 
 Use `terraform` directly if installed. Native Terraform tests mock the provider and plan both foundation and runtime configurations. CI performs fresh dependency installs, all these checks, Docker builds and real browser QA on Linux.
+
+The root URL is the product landing page. The operational dashboard is at `/overview`. See [the interface guide](UI_REDESIGN.md) and run `python scripts/redesign_qa.py` with your port arguments for the expanded route, drawer, responsive, and state verification.
